@@ -1,9 +1,12 @@
 # API Keys and sensitive config
-
 api_keys.json
 secrets.json
 .env
 .env.local
+.env.production
+
+# Build directories
+build/
 
 # Flutter/Dart
 .dart_tool/
