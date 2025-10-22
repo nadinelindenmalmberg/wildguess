@@ -208,12 +208,12 @@ class _QuizScreenState extends State<QuizScreen> {
                           padding: const EdgeInsets.symmetric(horizontal: 20),
                           decoration: BoxDecoration(
                             color: _isIncorrect 
-                                ? const Color.fromARGB(255, 235, 88, 88) 
+                                ? const Color.fromARGB(255, 223, 102, 102) 
                                 : const Color(0xFFF8FAFC),
                             borderRadius: BorderRadius.circular(30),
                             border: Border.all(
                               color: _isIncorrect 
-                                  ? const Color.fromARGB(255, 235, 88, 88).withOpacity(0.3)
+                                  ? const Color.fromARGB(255, 223, 102, 102).withOpacity(0.3)
                                   : Colors.white.withOpacity(0.2),
                               width: 1,
                             ),
