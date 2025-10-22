@@ -542,7 +542,9 @@ class _QuizScreenState extends State<QuizScreen> {
 
   String _getClueText() {
     if (widget.animal.hints.isNotEmpty) {
-      return widget.animal.hints.first;
+      // Show different hints based on question index
+      final hintIndex = (widget.questionIndex - 1) % widget.animal.hints.length;
+      return widget.animal.hints[hintIndex];
     }
     return widget.isEnglish 
         ? 'Can you guess this animal?'
