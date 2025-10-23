@@ -20,7 +20,7 @@ class HowToPlayScreen extends StatelessWidget {
       },
       {
         'title_en': 'Daily game',
-        'title_sv': 'Använd Ledtrådarna',
+        'title_sv': 'Dagligt spel',
         'body_en': 'You can play the game once per day. After 24 hours, you will be able to play the game again, with a new animal.',
         'body_sv': 'Du kan spela spelet en gång per dag. Efter 24 timmar kommer du att kunna spela spelet igen, med ett nytt djur.',
       },
