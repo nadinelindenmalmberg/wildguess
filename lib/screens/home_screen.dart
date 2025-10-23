@@ -89,7 +89,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 const SizedBox(height: 40),
                 
                 // Main content
-                Expanded(
+                Flexible(
                   child: FutureBuilder<AnimalData>(
                     future: _animalFuture,
                     builder: (context, snapshot) {
