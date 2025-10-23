@@ -3,13 +3,14 @@ import 'package:google_fonts/google_fonts.dart';
 import '../models/animal_data.dart';
 import 'home_screen.dart';
 import 'quiz_screen.dart';
+// Removed QuizScreen import as it's not needed for navigation from here
 
 class QuizResultScreen extends StatelessWidget {
   final AnimalData animal;
   final bool isEnglish;
   final bool isCorrect;
-  final int questionIndex;
-  final int totalQuestions;
+  final int questionIndex; // The attempt number
+  final int totalQuestions; // Still available if needed later
 
   const QuizResultScreen({
     super.key,
@@ -22,233 +23,105 @@ class QuizResultScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Determine the result text based on correctness and language
+    String resultTitle;
+    String resultMessage = ''; // Message about the attempt number
+
+    if (isCorrect) {
+      resultTitle = isEnglish ? 'You are correct!' : 'Du har rätt!';
+      resultMessage = isEnglish
+          ? 'You guessed correctly on attempt $questionIndex!'
+          : 'Du gissade rätt på försök $questionIndex!';
+    } else {
+      // Assuming 'Time's up!' means they ran out of attempts or similar
+      resultTitle = isEnglish ? 'Time\'s up!' : 'Tiden är ute!';
+      // Or provide a message indicating they didn't guess correctly
+      resultMessage = isEnglish
+          ? 'The correct animal was ${animal.name}.'
+          : 'Rätt djur var ${animal.name}.';
+    }
+
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: Colors.black, // Dark background like the image
       body: Container(
         color: Colors.black,
         child: SafeArea(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Padding( // Use Padding instead of SingleChildScrollView if content fits
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24), // Added vertical padding
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.center, // Center content horizontally
               children: [
-                // Header
-                Row(
-                  children: [
-                    IconButton(
-                      icon: const Icon(Icons.arrow_back),
-                      color: Colors.white,
-                      onPressed: () => Navigator.pop(context),
-                    ),
-                    const Spacer(),
-                    IconButton(
-                      icon: const Icon(Icons.info_outline),
-                      color: Colors.white,
-                      onPressed: () {},
-                    ),
-                  ],
-                ),
-                
-                // Result title
+                // --- Result Title ---
                 Text(
-                  isCorrect 
-                      ? (isEnglish ? 'You are correct!' : 'Du har rätt!')
-                      : (isEnglish ? 'Time\'s up!' : 'Tiden är ute!'),
+                  resultTitle,
                   style: GoogleFonts.ibmPlexMono(
-                    fontSize: 32,
+                    fontSize: 32, // Kept original size
                     fontWeight: FontWeight.w400,
                     color: Colors.white,
                     letterSpacing: 1.0,
                   ),
+                  textAlign: TextAlign.center,
                 ),
-                const SizedBox(height: 16),
-                
-                // Animal card
-                Container(
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFE7EFE7),
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  clipBehavior: Clip.antiAlias,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    animal.name.isNotEmpty ? animal.name : 'Unknown Animal',
-                                    style: GoogleFonts.ibmPlexMono(
-                                      fontSize: 18,
-                                      fontWeight: FontWeight.w600,
-                                      color: Colors.black,
-                                    ),
-                                  ),
-                                  if (animal.scientificName.isNotEmpty) ...[
-                                    const SizedBox(height: 2),
-                                    Text(
-                                      animal.scientificName,
-                                      style: GoogleFonts.ibmPlexMono(
-                                        fontSize: 13,
-                                        color: Colors.black87,
-                                      ),
-                                    ),
-                                  ],
-                                ],
-                              ),
-                            ),
-                            const Icon(Icons.expand_more, color: Colors.black87),
-                          ],
-                        ),
-                      ),
-                      if (animal.description.isNotEmpty) ...[
-                        const Divider(height: 1, color: Colors.black12),
-                        Padding(
-                          padding: const EdgeInsets.all(16),
-                          child: Text(
-                            animal.description,
-                            style: GoogleFonts.ibmPlexMono(
-                              fontSize: 14,
-                              color: Colors.black87,
-                              height: 1.4,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ],
-                  ),
+                const SizedBox(height: 24), // Increased spacing
+
+                // --- Animal Card (Now Stateful) ---
+                _ExpandableAnimalCard(
+                  animal: animal,
+                  isEnglish: isEnglish,
                 ),
-                const SizedBox(height: 24),
-                
-                // Statistics section
-                Center(
-                  child: Text(
-                    isEnglish ? 'daily statistics' : 'daglig statistik',
+                const SizedBox(height: 32), // Increased spacing
+
+                // --- Statistics Replacement Text ---
+                if (resultMessage.isNotEmpty) // Show message only if defined
+                  Text(
+                    resultMessage,
                     style: GoogleFonts.ibmPlexMono(
-                      color: Colors.white,
-                      fontSize: 20,
-                      fontWeight: FontWeight.w600,
-                      letterSpacing: 1.0,
+                      color: Colors.white70,
+                      fontSize: 14, // Adjusted size
                     ),
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Center(
-                  child: Text(
-                    isEnglish 
-                        ? "You and 52% of other players guessed on the ${questionIndex}rd try!"
-                        : "Du och 52% av andra spelare gissade på ${questionIndex}:e försöket!",
                     textAlign: TextAlign.center,
-                    style: GoogleFonts.ibmPlexMono(color: Colors.white70, fontSize: 12),
                   ),
-                ),
-                const SizedBox(height: 12),
-                
-                // Statistics bars
-                _StatsRow(attempt: '1', percent: 8, isEnglish: isEnglish),
-                _StatsRow(attempt: '2', percent: 11, isEnglish: isEnglish),
-                _StatsRow(attempt: '3', percent: 52, highlight: true, isEnglish: isEnglish),
-                _StatsRow(attempt: '4', percent: 20, isEnglish: isEnglish),
-                _StatsRow(attempt: '5', percent: 9, isEnglish: isEnglish),
-                const SizedBox(height: 24),
-                
-                // Action buttons
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: Material(
-                    color: Colors.transparent,
-                    child: InkWell(
-                      borderRadius: BorderRadius.circular(16),
-                      onTap: () {
-                        Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) => QuizScreen(
-                              animal: animal,
-                              isEnglish: isEnglish,
-                              questionIndex: 1,
-                              totalQuestions: totalQuestions,
-                            ),
-                          ),
-                        );
-                      },
-                      child: Container(
-                        height: 56,
-                        padding: const EdgeInsets.symmetric(horizontal: 24),
-                        decoration: BoxDecoration(
-                          color: Colors.green,
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        alignment: Alignment.center,
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              isEnglish ? 'Play again' : 'Spela igen',
-                              style: GoogleFonts.ibmPlexMono(
-                                color: Colors.white,
-                                fontSize: 18,
-                                fontWeight: FontWeight.w400,
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            const Icon(Icons.refresh, color: Colors.white),
-                          ],
-                        ),
+
+                const Spacer(), // Pushes the button to the bottom
+
+                // --- Action Button (Modified) ---
+                SizedBox( // Ensure button takes reasonable width
+                  width: double.infinity, // Make button wider
+                  height: 56,
+                  child: ElevatedButton( // Changed to ElevatedButton for style
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.grey[200], // Light background like image
+                      foregroundColor: Colors.black, // Black text like image
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
                       ),
                     ),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: Material(
-                    color: Colors.transparent,
-                    child: InkWell(
-                      borderRadius: BorderRadius.circular(16),
-                      onTap: () {
-                        Navigator.pushAndRemoveUntil(
-                          context,
+                    onPressed: () {
+                      Navigator.pushAndRemoveUntil(
+                        context,
                         MaterialPageRoute(
                           builder: (context) => const HomeScreen(),
+                        ),
+                        (route) => false, // Remove all previous routes
+                      );
+                    },
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center, // Center content
+                      children: [
+                        Text(
+                          isEnglish ? 'Back home' : 'Tillbaka hem', // Updated text
+                          style: GoogleFonts.ibmPlexMono(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w400, // Adjusted weight
                           ),
-                          (route) => false,
-                        );
-                      },
-                      child: Container(
-                        height: 56,
-                        padding: const EdgeInsets.symmetric(horizontal: 24),
-                        decoration: BoxDecoration(
-                          color: Colors.transparent,
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: Colors.white, width: 2),
                         ),
-                        alignment: Alignment.center,
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              isEnglish ? 'Back to home' : 'Tillbaka hem',
-                              style: GoogleFonts.ibmPlexMono(
-                                color: Colors.white,
-                                fontSize: 18,
-                                fontWeight: FontWeight.w400,
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            const Icon(Icons.home, color: Colors.white),
-                          ],
-                        ),
-                      ),
+                        const SizedBox(width: 8),
+                        const Icon(Icons.arrow_forward, size: 20), // Arrow like image
+                      ],
                     ),
                   ),
                 ),
-                const SizedBox(height: 24),
+                 const SizedBox(height: 16), // Padding at the very bottom
               ],
             ),
           ),
@@ -258,67 +131,132 @@ class QuizResultScreen extends StatelessWidget {
   }
 }
 
-class _StatsRow extends StatelessWidget {
-  final String attempt;
-  final int percent;
-  final bool highlight;
+// ----------------------------------------------------------------------
+// _ExpandableAnimalCard (Stateful Widget for the Card)
+// ----------------------------------------------------------------------
+class _ExpandableAnimalCard extends StatefulWidget {
+  final AnimalData animal;
   final bool isEnglish;
 
-  const _StatsRow({
-    required this.attempt,
-    required this.percent,
-    this.highlight = false,
-    required this.isEnglish,
-  });
+  const _ExpandableAnimalCard({required this.animal, required this.isEnglish});
+
+  @override
+  State<_ExpandableAnimalCard> createState() => _ExpandableAnimalCardState();
+}
+
+class _ExpandableAnimalCardState extends State<_ExpandableAnimalCard> {
+  bool _isExpanded = false;
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(
-        children: [
-          SizedBox(
-            width: 24,
-            child: Text(
-              attempt,
-              style: GoogleFonts.ibmPlexMono(
-                color: highlight ? Colors.white : Colors.white70,
-                fontSize: 14,
-                fontWeight: highlight ? FontWeight.w600 : FontWeight.w400,
+    final animalName = widget.animal.name.isNotEmpty ? widget.animal.name : 'Unknown Animal';
+    final scientificName = widget.animal.scientificName;
+    final description = widget.animal.description;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: const Color(0xFFE7EFE7), // Light background for the card
+        borderRadius: BorderRadius.circular(16),
+      ),
+      clipBehavior: Clip.antiAlias, // Ensures content respects border radius
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () {
+            // Only toggle if there is a description to show/hide
+            if (description.isNotEmpty) {
+               setState(() {
+                _isExpanded = !_isExpanded;
+              });
+            }
+          },
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // --- Placeholder Image ---
+              Container(
+                height: 140, // Adjust height as needed
+                width: double.infinity,
+                color: Colors.grey[300], // Placeholder background color
+                child: Icon(
+                  Icons.pets, // Placeholder Icon
+                  size: 60,
+                  color: Colors.grey[600],
+                ),
+                // TODO: Replace with Image.network(widget.animal.imageUrl) when available
               ),
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Container(
-              height: 8,
-              decoration: BoxDecoration(
-                color: Colors.white24,
-                borderRadius: BorderRadius.circular(4),
-              ),
-              child: FractionallySizedBox(
-                alignment: Alignment.centerLeft,
-                widthFactor: percent / 100,
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: highlight ? Colors.white : Colors.white70,
-                    borderRadius: BorderRadius.circular(4),
-                  ),
+
+              // --- Animal Info Header (Always Visible) ---
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            animalName,
+                            style: GoogleFonts.ibmPlexMono(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.black, // Black text on light card
+                            ),
+                          ),
+                          if (scientificName.isNotEmpty) ...[
+                            const SizedBox(height: 2),
+                            Text(
+                              scientificName,
+                              style: GoogleFonts.ibmPlexMono(
+                                fontSize: 13,
+                                color: Colors.black87, // Darker grey text
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                    // Show expand icon only if there's content to expand
+                    if (description.isNotEmpty)
+                      Icon(
+                         _isExpanded ? Icons.expand_less : Icons.expand_more,
+                         color: Colors.black87
+                      ),
+                  ],
                 ),
               ),
-            ),
+
+              // --- Collapsible Description Section ---
+              AnimatedSize(
+                duration: const Duration(milliseconds: 250), // Slightly faster animation
+                curve: Curves.easeInOut,
+                alignment: Alignment.topCenter,
+                child: _isExpanded && description.isNotEmpty
+                    ? Column( // Use Column to include Divider
+                        children: [
+                          const Divider(height: 1, color: Colors.black12),
+                          Padding(
+                            padding: const EdgeInsets.all(16),
+                            child: Text(
+                              description,
+                              style: GoogleFonts.ibmPlexMono(
+                                fontSize: 14,
+                                color: Colors.black87,
+                                height: 1.4,
+                              ),
+                            ),
+                          ),
+                        ],
+                      )
+                    : const SizedBox.shrink(), // Collapsed state
+              ),
+            ],
           ),
-          const SizedBox(width: 12),
-          Text(
-            '$percent%',
-            style: GoogleFonts.ibmPlexMono(
-              color: highlight ? Colors.white : Colors.white70,
-              fontSize: 14,
-              fontWeight: highlight ? FontWeight.w600 : FontWeight.w400,
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }
 }
+
+// Removed _StatsRow class as it's no longer used
