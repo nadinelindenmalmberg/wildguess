@@ -1,6 +1,9 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../models/animal_data.dart';
+import '../services/ai_clue_service.dart';
+import '../services/api_service.dart';
 import 'quiz_result_screen.dart';
 
 class QuizScreen extends StatefulWidget {
@@ -24,71 +27,129 @@ class QuizScreen extends StatefulWidget {
 class _QuizScreenState extends State<QuizScreen> {
   final TextEditingController _searchController = TextEditingController();
   final FocusNode _searchFocusNode = FocusNode();
+  final AiClueService _aiClueService = AiClueService();
+  final ApiService _apiService = ApiService();
 
-  final List<String> _allAnimals = const [
-    'Rabbit',
-    'White tailed rabbit',
-    'Brown Canadian rabbit',
-    'Hare',
-    'Arctic hare',
-    'Mountain hare',
-    'Pika',
-    'Mouse',
-    'Rat',
-    'Squirrel',
-    'Fox',
-    'Red fox',
-    'Arctic fox',
-    'Wolf',
-    'Bear',
-    'Brown bear',
-    'Polar bear',
-    'Deer',
-    'Moose',
-    'Elk',
-  ];
+  List<String> _aiClues = [];
+  bool _isLoadingAiClues = false;
 
+  List<AnimalData> _searchResults = [];
   List<String> _filtered = const [];
+  bool _isSearching = false;
   bool _hasChosenSuggestion = false;
   bool _isIncorrect = false;
   bool _isCorrect = false;
   String? _selectedAnswer;
+  
+  // Debouncing timer to prevent excessive API calls
+  Timer? _searchDebounceTimer;
 
   @override
   void initState() {
     super.initState();
     _searchController.addListener(_onQueryChanged);
+    _generateAiClues();
+  }
+
+  Future<void> _generateAiClues() async {
+    if (_aiClues.isNotEmpty) return; // Already generated
+    
+    setState(() {
+      _isLoadingAiClues = true;
+    });
+
+    try {
+      final clues = await _aiClueService.generateClues(
+        widget.animal,
+        isEnglish: widget.isEnglish,
+      );
+      
+      if (mounted) {
+        setState(() {
+          _aiClues = clues;
+          _isLoadingAiClues = false;
+        });
+      }
+    } catch (e) {
+      print('Failed to generate AI clues: $e');
+      if (mounted) {
+        setState(() {
+          _isLoadingAiClues = false;
+        });
+      }
+    }
   }
 
   @override
   void dispose() {
+    _searchDebounceTimer?.cancel();
     _searchController.removeListener(_onQueryChanged);
     _searchController.dispose();
     _searchFocusNode.dispose();
+    _aiClueService.dispose();
+    _apiService.dispose();
     super.dispose();
   }
 
   void _onQueryChanged() {
-    final query = _searchController.text.trim().toLowerCase();
+    final query = _searchController.text.trim();
+    
+    // Cancel previous timer
+    _searchDebounceTimer?.cancel();
+    
     if (query.isEmpty) {
       setState(() {
         _filtered = const [];
+        _searchResults = [];
+        _hasChosenSuggestion = false;
+        _isIncorrect = false;
+        _isCorrect = false;
+        _selectedAnswer = null;
+        _isSearching = false;
+      });
+      return;
+    }
+    
+    if (query.length < 2) {
+      setState(() {
+        _filtered = const [];
+        _searchResults = [];
+        _isSearching = false;
+      });
+      return;
+    }
+    
+    // Debounce the search - wait 300ms after user stops typing
+    _searchDebounceTimer = Timer(const Duration(milliseconds: 300), () async {
+      if (!mounted) return;
+      
+      setState(() {
+        _isSearching = true;
         _hasChosenSuggestion = false;
         _isIncorrect = false;
         _isCorrect = false;
         _selectedAnswer = null;
       });
-      return;
-    }
-    setState(() {
-      _filtered = _allAnimals
-          .where((name) => name.toLowerCase().contains(query))
-          .take(6)
-          .toList();
-      _hasChosenSuggestion = false;
-      _isIncorrect = false;
-      _isCorrect = false;
-      _selectedAnswer = null;
+      
+      try {
+        final results = await _apiService.searchSpecies(query);
+        if (mounted) {
+          setState(() {
+            _searchResults = results;
+            _filtered = results.map((animal) => animal.name).take(6).toList();
+            _isSearching = false;
+          });
+        }
+      } catch (e) {
+        if (mounted) {
+          setState(() {
+            _searchResults = [];
+            _filtered = const [];
+            _isSearching = false;
+          });
+          print('Search error: $e');
+        }
+      }
     });
   }
 
@@ -260,10 +321,10 @@ class _QuizScreenState extends State<QuizScreen> {
                           ),
                         ),
                         
-                        // Suggestions dropdown
+                        // Search suggestions dropdown
                         AnimatedSwitcher(
                           duration: const Duration(milliseconds: 180),
-                          child: _filtered.isNotEmpty && _searchFocusNode.hasFocus && !_isIncorrect && !_isCorrect
+                          child: _searchFocusNode.hasFocus && !_isIncorrect && !_isCorrect
                               ? Container(
                                   key: const ValueKey('suggestions'),
                                   margin: const EdgeInsets.only(top: 8),
@@ -271,49 +332,103 @@ class _QuizScreenState extends State<QuizScreen> {
                                     color: const Color(0xFFE7EFE7),
                                     borderRadius: BorderRadius.circular(12),
                                   ),
-                                  child: ListView.separated(
-                                    shrinkWrap: true,
-                                    physics: const NeverScrollableScrollPhysics(),
-                                    itemCount: _filtered.length,
-                                    separatorBuilder: (_, __) => const Divider(height: 1, color: Colors.black12),
-                                    itemBuilder: (context, index) {
-                                      final suggestion = _filtered[index];
-                                      return InkWell(
-                                        borderRadius: index == 0 || index == _filtered.length - 1
-                                            ? BorderRadius.only(
-                                                topLeft: Radius.circular(index == 0 ? 12 : 0),
-                                                topRight: Radius.circular(index == 0 ? 12 : 0),
-                                                bottomLeft: Radius.circular(index == _filtered.length - 1 ? 12 : 0),
-                                                bottomRight: Radius.circular(index == _filtered.length - 1 ? 12 : 0),
-                                              )
-                                            : BorderRadius.zero,
-                                        onTap: () {
-                                          _searchController.text = suggestion;
-                                          _searchFocusNode.unfocus();
-                                          setState(() {
-                                            _filtered = const [];
-                                            _hasChosenSuggestion = true;
-                                            _isIncorrect = false;
-                                            _isCorrect = false;
-                                            _selectedAnswer = suggestion;
-                                          });
-                                        },
-                                        child: Padding(
-                                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                                          child: Align(
-                                            alignment: Alignment.centerLeft,
-                                            child: Text(
-                                              suggestion,
-                                              style: GoogleFonts.ibmPlexMono(
-                                                fontSize: 16,
-                                                color: Colors.black,
+                                  child: _isSearching
+                                      ? Padding(
+                                          padding: const EdgeInsets.all(16),
+                                          child: Row(
+                                            mainAxisAlignment: MainAxisAlignment.center,
+                                            children: [
+                                              const SizedBox(
+                                                width: 16,
+                                                height: 16,
+                                                child: CircularProgressIndicator(
+                                                  strokeWidth: 2,
+                                                  valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF1F2937)),
+                                                ),
                                               ),
-                                            ),
+                                              const SizedBox(width: 12),
+                                              Text(
+                                                'Söker arter...',
+                                                style: GoogleFonts.ibmPlexMono(
+                                                  fontSize: 14,
+                                                  color: const Color(0xFF1F2937),
+                                                ),
+                                              ),
+                                            ],
                                           ),
-                                        ),
-                                      );
-                                    },
-                                  ),
+                                        )
+                                      : _filtered.isNotEmpty
+                                          ? ListView.separated(
+                                              shrinkWrap: true,
+                                              physics: const NeverScrollableScrollPhysics(),
+                                              itemCount: _filtered.length,
+                                              separatorBuilder: (_, __) => const Divider(height: 1, color: Colors.black12),
+                                              itemBuilder: (context, index) {
+                                                final suggestion = _filtered[index];
+                                                final animalData = _searchResults.length > index ? _searchResults[index] : null;
+                                                return InkWell(
+                                                  borderRadius: index == 0 || index == _filtered.length - 1
+                                                      ? BorderRadius.only(
+                                                          topLeft: Radius.circular(index == 0 ? 12 : 0),
+                                                          topRight: Radius.circular(index == 0 ? 12 : 0),
+                                                          bottomLeft: Radius.circular(index == _filtered.length - 1 ? 12 : 0),
+                                                          bottomRight: Radius.circular(index == _filtered.length - 1 ? 12 : 0),
+                                                        )
+                                                      : BorderRadius.zero,
+                                                  onTap: () {
+                                                    _searchController.text = suggestion;
+                                                    _searchFocusNode.unfocus();
+                                                    setState(() {
+                                                      _filtered = const [];
+                                                      _searchResults = [];
+                                                      _hasChosenSuggestion = true;
+                                                      _isIncorrect = false;
+                                                      _isCorrect = false;
+                                                      _selectedAnswer = suggestion;
+                                                    });
+                                                  },
+                                                  child: Padding(
+                                                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                                    child: Column(
+                                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                                      children: [
+                                                        Text(
+                                                          suggestion,
+                                                          style: GoogleFonts.ibmPlexMono(
+                                                            fontSize: 15,
+                                                            color: const Color(0xFF1F2937),
+                                                            fontWeight: FontWeight.w600,
+                                                          ),
+                                                        ),
+                                                        if (animalData?.scientificName.isNotEmpty == true) ...[
+                                                          const SizedBox(height: 2),
+                                                          Text(
+                                                            animalData!.scientificName,
+                                                            style: GoogleFonts.ibmPlexMono(
+                                                              fontSize: 13,
+                                                              color: const Color(0xFF6B7280),
+                                                              fontStyle: FontStyle.italic,
+                                                            ),
+                                                          ),
+                                                        ],
+                                                      ],
+                                                    ),
+                                                  ),
+                                                );
+                                              },
+                                            )
+                                          : _searchController.text.length >= 2
+                                              ? Padding(
+                                                  padding: const EdgeInsets.all(16),
+                                                  child: Text(
+                                                    'Inga arter hittades för "${_searchController.text}"',
+                                                    style: GoogleFonts.ibmPlexMono(
+                                                      fontSize: 14,
+                                                      color: const Color(0xFF6B7280),
+                                                    ),
+                                                  ),
+                                                )
+                                              : const SizedBox.shrink(),
                                 )
                               : const SizedBox.shrink(),
                         ),
@@ -540,11 +655,25 @@ class _QuizScreenState extends State<QuizScreen> {
   }
 
   String _getClueText() {
+    // Show loading message while AI clues are being generated
+    if (_isLoadingAiClues) {
+      return widget.isEnglish 
+          ? 'Generating AI clues...'
+          : 'Genererar AI-ledtrådar...';
+    }
+    
+    // Use AI clues if available
+    if (_aiClues.isNotEmpty) {
+      final clueIndex = (widget.questionIndex - 1) % _aiClues.length;
+      return _aiClues[clueIndex];
+    }
+    
+    // Fallback to API hints only if AI failed
     if (widget.animal.hints.isNotEmpty) {
-      // Show different hints based on question index
       final hintIndex = (widget.questionIndex - 1) % widget.animal.hints.length;
       return widget.animal.hints[hintIndex];
     }
+    
     return widget.isEnglish 
         ? 'Can you guess this animal?'
         : 'Kan du gissa detta djur?';
