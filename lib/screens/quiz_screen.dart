@@ -367,7 +367,7 @@ class _QuizScreenState extends State<QuizScreen> {
                           decoration: BoxDecoration(
                             color: _isIncorrect 
                                 ? const Color.fromARGB(255, 223, 102, 102) 
-                                : const Color(0xFFF8FAFC),
+                                : Colors.black,
                             borderRadius: BorderRadius.circular(30),
                             border: Border.all(
                               color: _isIncorrect 
@@ -390,7 +390,7 @@ class _QuizScreenState extends State<QuizScreen> {
                                 duration: const Duration(milliseconds: 300),
                                 style: GoogleFonts.ibmPlexMono(
                                   fontSize: 18,
-                                  color: _newColor, // Ändrad
+                                  color: Colors.white, // Changed to white for black background
                                   height: 1.5,
                                 ),
                                 child: Text(
@@ -400,6 +400,43 @@ class _QuizScreenState extends State<QuizScreen> {
                               ),
                             ],
                           ),
+                        ),
+                        
+                        const SizedBox(height: 16),
+                        
+                        // Search input field
+                        TextField(
+                          controller: _searchController,
+                          focusNode: _searchFocusNode,
+                          decoration: InputDecoration(
+                            hintText: widget.isEnglish 
+                                ? 'Type your guess here...' 
+                                : 'Skriv din gissning här...',
+                            hintStyle: GoogleFonts.ibmPlexMono(
+                              color: Colors.grey[500],
+                              fontSize: 16,
+                            ),
+                            filled: true,
+                            fillColor: Colors.white,
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(16),
+                              borderSide: BorderSide.none,
+                            ),
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 20,
+                              vertical: 16,
+                            ),
+                            prefixIcon: const Icon(
+                              Icons.search,
+                              color: Colors.grey,
+                            ),
+                          ),
+                          style: GoogleFonts.ibmPlexMono(
+                            fontSize: 16,
+                            color: Colors.black,
+                          ),
+                          textInputAction: TextInputAction.done,
+                          onSubmitted: (_) => _checkAnswer(),
                         ),
                         
                         // Search suggestions dropdown
@@ -440,7 +477,10 @@ class _QuizScreenState extends State<QuizScreen> {
                                         )
                                       : _filtered.isNotEmpty
                                           ? Container(
-                                              height: 200,
+                                              constraints: BoxConstraints(
+                                                maxHeight: _filtered.length == 1 ? 60 : 200,
+                                                minHeight: _filtered.length == 1 ? 60 : 0,
+                                              ),
                                               decoration: BoxDecoration(
                                                 border: Border.all(color: Colors.black12),
                                                 borderRadius: BorderRadius.circular(12),
@@ -448,62 +488,62 @@ class _QuizScreenState extends State<QuizScreen> {
                                               child: ListView.separated(
                                                 physics: const BouncingScrollPhysics(),
                                                 itemCount: _filtered.length,
-                                              separatorBuilder: (_, __) => const Divider(height: 1, color: Colors.black12),
-                                              itemBuilder: (context, index) {
-                                                final suggestion = _filtered[index];
-                                                final animalData = _searchResults.length > index ? _searchResults[index] : null;
-                                                return InkWell(
-                                                  borderRadius: index == 0 || index == _filtered.length - 1
-                                                      ? BorderRadius.only(
-                                                          topLeft: Radius.circular(index == 0 ? 12 : 0),
-                                                          topRight: Radius.circular(index == 0 ? 12 : 0),
-                                                          bottomLeft: Radius.circular(index == _filtered.length - 1 ? 12 : 0),
-                                                          bottomRight: Radius.circular(index == _filtered.length - 1 ? 12 : 0),
-                                                        )
-                                                      : BorderRadius.zero,
-                                                  onTap: () {
-                                                    _searchController.text = suggestion;
-                                                    _searchFocusNode.unfocus();
-                                                    setState(() {
-                                                      _filtered = const [];
-                                                      _searchResults = [];
-                                                      _hasChosenSuggestion = true;
-                                                      _isIncorrect = false;
-                                                      _isCorrect = false;
-                                                      _selectedAnswer = suggestion;
-                                                    });
-                                                  },
-                                                  child: Padding(
-                                                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                                                    child: Column(
-                                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                                      children: [
-                                                        Text(
-                                                          suggestion,
-                                                          style: GoogleFonts.ibmPlexMono(
-                                                            fontSize: 15,
-                                                            color: const Color(0xFF1F2937),
-                                                            fontWeight: FontWeight.w600,
-                                                          ),
-                                                        ),
-                                                        if (animalData?.scientificName.isNotEmpty == true) ...[
-                                                          const SizedBox(height: 2),
+                                                separatorBuilder: (_, __) => const Divider(height: 1, color: Colors.black12),
+                                                itemBuilder: (context, index) {
+                                                  final suggestion = _filtered[index];
+                                                  final animalData = _searchResults.length > index ? _searchResults[index] : null;
+                                                  return InkWell(
+                                                    borderRadius: index == 0 || index == _filtered.length - 1
+                                                        ? BorderRadius.only(
+                                                            topLeft: Radius.circular(index == 0 ? 12 : 0),
+                                                            topRight: Radius.circular(index == 0 ? 12 : 0),
+                                                            bottomLeft: Radius.circular(index == _filtered.length - 1 ? 12 : 0),
+                                                            bottomRight: Radius.circular(index == _filtered.length - 1 ? 12 : 0),
+                                                          )
+                                                        : BorderRadius.zero,
+                                                    onTap: () {
+                                                      _searchController.text = suggestion;
+                                                      _searchFocusNode.unfocus();
+                                                      setState(() {
+                                                        _filtered = const [];
+                                                        _searchResults = [];
+                                                        _hasChosenSuggestion = true;
+                                                        _isIncorrect = false;
+                                                        _isCorrect = false;
+                                                        _selectedAnswer = suggestion;
+                                                      });
+                                                    },
+                                                    child: Padding(
+                                                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                                      child: Column(
+                                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                                        children: [
                                                           Text(
-                                                            animalData!.scientificName,
+                                                            suggestion,
                                                             style: GoogleFonts.ibmPlexMono(
-                                                              fontSize: 13,
-                                                              color: const Color(0xFF6B7280),
-                                                              fontStyle: FontStyle.italic,
+                                                              fontSize: 15,
+                                                              color: const Color(0xFF1F2937),
+                                                              fontWeight: FontWeight.w600,
                                                             ),
                                                           ),
+                                                          if (animalData?.scientificName.isNotEmpty == true) ...[
+                                                            const SizedBox(height: 2),
+                                                            Text(
+                                                              animalData!.scientificName,
+                                                              style: GoogleFonts.ibmPlexMono(
+                                                                fontSize: 13,
+                                                                color: const Color(0xFF6B7280),
+                                                                fontStyle: FontStyle.italic,
+                                                              ),
+                                                            ),
+                                                          ],
                                                         ],
-                                                      ],
+                                                      ),
                                                     ),
-                                                  ),
-                                                );
-                                              },
-                                            ),
-                                          )
+                                                  );
+                                                },
+                                              ),
+                                            )
                                           : _searchController.text.length >= 2
                                               ? Padding(
                                                   padding: const EdgeInsets.all(16),
