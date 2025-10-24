@@ -737,9 +737,12 @@ class _QuizScreenState extends State<QuizScreen> {
       Navigator.of(context).pushReplacement( // Använd pushReplacement för att ersätta quiz-skärmen
         MaterialPageRoute(
           builder: (_) => QuizResultScreen(
-            animal: widget.animal, isEnglish: widget.isEnglish, isCorrect: _isCorrect,
+            animal: widget.animal, 
+            isEnglish: widget.isEnglish, 
+            isCorrect: _isCorrect,
             questionIndex: _isCorrect ? widget.questionIndex : widget.totalQuestions, // Korrekt index till resultat
             totalQuestions: widget.totalQuestions,
+            aiClues: _aiClues, // Add the missing aiClues parameter
           ),
         ),
       );
