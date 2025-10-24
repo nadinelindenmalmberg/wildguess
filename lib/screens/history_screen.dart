@@ -1,38 +1,110 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../services/history_service.dart';
 
-class HistoryScreen extends StatelessWidget {
+class HistoryScreen extends StatefulWidget {
   final bool isEnglish;
 
   const HistoryScreen({super.key, required this.isEnglish});
 
   @override
+  State<HistoryScreen> createState() => _HistoryScreenState();
+}
+
+class _HistoryScreenState extends State<HistoryScreen> {
+  List<Map<String, dynamic>> _historyItems = [];
+  bool _isLoading = true;
+  Map<String, dynamic> _statistics = {};
+
+  @override
+  void initState() {
+    super.initState();
+    _loadHistory();
+  }
+
+  Future<void> _loadHistory() async {
+    try {
+      final history = await HistoryService.getGameHistory();
+      final stats = await HistoryService.getStatistics();
+      
+      if (mounted) {
+        setState(() {
+          _historyItems = history;
+          _statistics = stats;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _clearHistory() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFFE7EFE7),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text(
+          widget.isEnglish ? 'Clear History' : 'Rensa historik',
+          style: GoogleFonts.ibmPlexMono(
+            fontSize: 18,
+            fontWeight: FontWeight.w600,
+            color: Colors.black,
+          ),
+        ),
+        content: Text(
+          widget.isEnglish 
+              ? 'Are you sure you want to clear all game history? This action cannot be undone.'
+              : 'Är du säker på att du vill rensa all spelhistorik? Denna åtgärd kan inte ångras.',
+          style: GoogleFonts.ibmPlexMono(
+            fontSize: 14,
+            color: Colors.black87,
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: Text(
+              widget.isEnglish ? 'Cancel' : 'Avbryt',
+              style: GoogleFonts.ibmPlexMono(
+                color: Colors.grey[600],
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: Text(
+              widget.isEnglish ? 'Clear' : 'Rensa',
+              style: GoogleFonts.ibmPlexMono(
+                color: Colors.red,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      await HistoryService.clearHistory();
+      _loadHistory();
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    // Placeholder list of animals (15 items for scroll testing, but ListView.builder handles many more)
-    final List<Map<String, String>> historyItems = [
-      {'name_en': 'Moose', 'name_sv': 'Älg', 'image_url': 'https://example.com/moose.jpg'},
-      {'name_en': 'Wolf', 'name_sv': 'Varg', 'image_url': 'https://example.com/wolf.jpg'},
-      {'name_en': 'Lynx', 'name_sv': 'Lo', 'image_url': 'https://example.com/lynx.jpg'},
-      {'name_en': 'Brown Bear', 'name_sv': 'Brunbjörn', 'image_url': 'https://example.com/bear.jpg'},
-      {'name_en': 'Reindeer', 'name_sv': 'Renen', 'image_url': 'https://example.com/reindeer.jpg'},
-      {'name_en': 'Wild Boar', 'name_sv': 'Vildsvin', 'image_url': 'https://example.com/boar.jpg'},
-      {'name_en': 'Red Fox', 'name_sv': 'Rödräv', 'image_url': 'https://example.com/fox.jpg'},
-      {'name_en': 'Beaver', 'name_sv': 'Bäver', 'image_url': 'https://example.com/beaver.jpg'},
-      {'name_en': 'Arctic Fox', 'name_sv': 'Fjällräv', 'image_url': 'https://example.com/arcticfox.jpg'},
-      {'name_en': 'Hare', 'name_sv': 'Hare', 'image_url': 'https://example.com/hare.jpg'},
-      {'name_en': 'Otter', 'name_sv': 'Utter', 'image_url': 'https://example.com/otter.jpg'},
-      {'name_en': 'Seal', 'name_sv': 'Säl', 'image_url': 'https://example.com/seal.jpg'},
-      {'name_en': 'Pine Marten', 'name_sv': 'Mård', 'image_url': 'https://example.com/marten.jpg'},
-      {'name_en': 'Wolverine', 'name_sv': 'Järv', 'image_url': 'https://example.com/wolverine.jpg'},
-      {'name_en': 'Red Deer', 'name_sv': 'Kronhjort', 'image_url': 'https://example.com/reddeer.jpg'},
-      // Add more items here if needed for testing longer lists
-    ];
 
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: AppBar(
         title: Text(
-          isEnglish ? 'History' : 'Historik',
+          widget.isEnglish ? 'History' : 'Historik',
           style: GoogleFonts.ibmPlexMono(
             fontSize: 22,
             fontWeight: FontWeight.w600,
@@ -41,29 +113,149 @@ class HistoryScreen extends StatelessWidget {
         ),
         backgroundColor: Colors.black,
         iconTheme: const IconThemeData(color: Colors.white),
+        actions: [
+          if (_historyItems.isNotEmpty)
+            IconButton(
+              icon: const Icon(Icons.delete_outline),
+              onPressed: _clearHistory,
+              tooltip: widget.isEnglish ? 'Clear History' : 'Rensa historik',
+            ),
+        ],
       ),
-      // --- MODIFIED BODY ---
       body: SafeArea(
-        // Use ListView.builder for efficient scrolling with potentially many items
-        child: ListView.builder(
-          padding: const EdgeInsets.all(16.0), // Apply padding to the ListView itself
-          itemCount: historyItems.length,      // Tell the ListView how many items there are
-          itemBuilder: (context, index) {
-            final item = historyItems[index]; // Get the data for the current item
-            // Return the widget for this list item, wrapped in padding
-            return Padding(
-              padding: const EdgeInsets.only(bottom: 12.0), // Add spacing between cards
-              child: HistoryAnimalCard(
-                nameEn: item['name_en']!,
-                nameSv: item['name_sv']!,
-                imageUrl: item['image_url']!,
-                isEnglish: isEnglish,
-              ),
-            );
-          },
-        ),
+        child: _isLoading
+            ? const Center(
+                child: CircularProgressIndicator(color: Colors.white),
+              )
+            : _historyItems.isEmpty
+                ? Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.history,
+                          size: 64,
+                          color: Colors.white.withOpacity(0.3),
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          widget.isEnglish 
+                              ? 'No games played yet' 
+                              : 'Inga spel spelade än',
+                          style: GoogleFonts.ibmPlexMono(
+                            fontSize: 18,
+                            color: Colors.white.withOpacity(0.7),
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          widget.isEnglish 
+                              ? 'Start playing to see your history here' 
+                              : 'Börja spela för att se din historik här',
+                          style: GoogleFonts.ibmPlexMono(
+                            fontSize: 14,
+                            color: Colors.white.withOpacity(0.5),
+                          ),
+                        ),
+                      ],
+                    ),
+                  )
+                : Column(
+                    children: [
+                      // Statistics header
+                      if (_statistics.isNotEmpty)
+                        Container(
+                          margin: const EdgeInsets.all(16),
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: Colors.white.withOpacity(0.2),
+                              width: 1,
+                            ),
+                          ),
+                          child: Column(
+                            children: [
+                              Text(
+                                widget.isEnglish ? 'Statistics' : 'Statistik',
+                                style: GoogleFonts.ibmPlexMono(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.white,
+                                ),
+                              ),
+                              const SizedBox(height: 12),
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                                children: [
+                                  _buildStatItem(
+                                    widget.isEnglish ? 'Games' : 'Spel',
+                                    '${_statistics['total_games']}',
+                                  ),
+                                  _buildStatItem(
+                                    widget.isEnglish ? 'Correct' : 'Rätt',
+                                    '${_statistics['correct_games']}',
+                                  ),
+                                  _buildStatItem(
+                                    widget.isEnglish ? 'Accuracy' : 'Träffsäkerhet',
+                                    '${_statistics['accuracy'].toStringAsFixed(1)}%',
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                      // History list
+                      Expanded(
+                        child: ListView.builder(
+                          padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                          itemCount: _historyItems.length,
+                          itemBuilder: (context, index) {
+                            final item = _historyItems[index];
+                            return Padding(
+                              padding: const EdgeInsets.only(bottom: 12.0),
+                              child: HistoryAnimalCard(
+                                nameEn: item['animal_name'] ?? '',
+                                nameSv: item['animal_name'] ?? '',
+                                imageUrl: item['animal_image_url'] ?? '',
+                                isEnglish: widget.isEnglish,
+                                isCorrect: item['is_correct'] ?? false,
+                                questionIndex: item['question_index'] ?? 0,
+                                totalQuestions: item['total_questions'] ?? 0,
+                                score: item['score'] ?? 0,
+                                completedAt: DateTime.tryParse(item['completed_at'] ?? '') ?? DateTime.now(),
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
       ),
-      // --- END OF MODIFIED BODY ---
+    );
+  }
+
+  Widget _buildStatItem(String label, String value) {
+    return Column(
+      children: [
+        Text(
+          value,
+          style: GoogleFonts.ibmPlexMono(
+            fontSize: 20,
+            fontWeight: FontWeight.w700,
+            color: Colors.white,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          label,
+          style: GoogleFonts.ibmPlexMono(
+            fontSize: 12,
+            color: Colors.white.withOpacity(0.7),
+          ),
+        ),
+      ],
     );
   }
 }
@@ -77,6 +269,11 @@ class HistoryAnimalCard extends StatefulWidget {
   final String nameSv;
   final String imageUrl;
   final bool isEnglish;
+  final bool isCorrect;
+  final int questionIndex;
+  final int totalQuestions;
+  final int score;
+  final DateTime completedAt;
 
   const HistoryAnimalCard({
     super.key,
@@ -84,6 +281,11 @@ class HistoryAnimalCard extends StatefulWidget {
     required this.nameSv,
     required this.imageUrl,
     required this.isEnglish,
+    this.isCorrect = false,
+    this.questionIndex = 0,
+    this.totalQuestions = 0,
+    this.score = 0,
+    required this.completedAt,
   });
 
   @override
@@ -96,13 +298,13 @@ class _HistoryAnimalCardState extends State<HistoryAnimalCard> {
   @override
   Widget build(BuildContext context) {
     final animalName = widget.isEnglish ? widget.nameEn : widget.nameSv;
-    final factsLabel = widget.isEnglish ? 'Facts:' : 'Fakta:';
-    const placeholderFact1 = 'Habitat: Found across all Swedish forests and mountains.';
-    const placeholderFact2 = 'Diet: Primarily vegetarian, but occasionally eats berries.';
-    const placeholderFactSv1 = 'Habitat: Finns i alla svenska skogar och berg.';
-    const placeholderFactSv2 = 'Diet: Huvudsakligen vegetarisk, men äter ibland bär.';
-    final factText1 = widget.isEnglish ? placeholderFact1 : placeholderFactSv1;
-    final factText2 = widget.isEnglish ? placeholderFact2 : placeholderFactSv2;
+    final resultText = widget.isCorrect 
+        ? (widget.isEnglish ? 'Correct!' : 'Rätt!')
+        : (widget.isEnglish ? 'Incorrect' : 'Fel');
+    final resultColor = widget.isCorrect ? Colors.green : Colors.red;
+    final scoreText = widget.isEnglish ? 'Score' : 'Poäng';
+    final questionText = widget.isEnglish ? 'Question' : 'Fråga';
+    final dateText = _formatDate(widget.completedAt);
 
     return Container(
       decoration: BoxDecoration(
@@ -173,31 +375,58 @@ class _HistoryAnimalCardState extends State<HistoryAnimalCard> {
                           children: [
                             const Divider(color: Colors.white30, height: 1),
                             const SizedBox(height: 12),
-                            Text(
-                              factsLabel,
-                              style: GoogleFonts.ibmPlexMono(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w600,
-                                color: Colors.white,
-                              ),
+                            // Game result
+                            Row(
+                              children: [
+                                Icon(
+                                  widget.isCorrect ? Icons.check_circle : Icons.cancel,
+                                  color: resultColor,
+                                  size: 20,
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  resultText,
+                                  style: GoogleFonts.ibmPlexMono(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w600,
+                                    color: resultColor,
+                                  ),
+                                ),
+                              ],
                             ),
-                            const SizedBox(height: 8),
-                            Text(
-                              '— $factText1',
-                              style: GoogleFonts.ibmPlexMono(
-                                fontSize: 14,
-                                color: Colors.white70,
-                                height: 1.4,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              '— $factText2',
-                              style: GoogleFonts.ibmPlexMono(
-                                fontSize: 14,
-                                color: Colors.white70,
-                                height: 1.4,
-                              ),
+                            const SizedBox(height: 12),
+                            // Game details
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      '$questionText ${widget.questionIndex}/${widget.totalQuestions}',
+                                      style: GoogleFonts.ibmPlexMono(
+                                        fontSize: 14,
+                                        color: Colors.white.withOpacity(0.8),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      '$scoreText: ${widget.score}',
+                                      style: GoogleFonts.ibmPlexMono(
+                                        fontSize: 14,
+                                        color: Colors.white.withOpacity(0.8),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                Text(
+                                  dateText,
+                                  style: GoogleFonts.ibmPlexMono(
+                                    fontSize: 12,
+                                    color: Colors.white.withOpacity(0.6),
+                                  ),
+                                ),
+                              ],
                             ),
                           ],
                         ),
@@ -209,5 +438,20 @@ class _HistoryAnimalCardState extends State<HistoryAnimalCard> {
         ),
       ),
     );
+  }
+
+  String _formatDate(DateTime date) {
+    final now = DateTime.now();
+    final difference = now.difference(date);
+    
+    if (difference.inDays == 0) {
+      return widget.isEnglish ? 'Today' : 'Idag';
+    } else if (difference.inDays == 1) {
+      return widget.isEnglish ? 'Yesterday' : 'Igår';
+    } else if (difference.inDays < 7) {
+      return '${difference.inDays} ${widget.isEnglish ? 'days ago' : 'dagar sedan'}';
+    } else {
+      return '${date.day}/${date.month}/${date.year}';
+    }
   }
 }

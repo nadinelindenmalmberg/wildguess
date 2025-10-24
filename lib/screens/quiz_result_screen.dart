@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../models/animal_data.dart';
+import '../services/history_service.dart';
 import 'home_screen.dart';
 import 'quiz_screen.dart';
 
@@ -28,6 +29,22 @@ class QuizResultScreen extends StatefulWidget {
 
 class _QuizResultScreenState extends State<QuizResultScreen> {
   bool _isExpanded = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _saveGameHistory();
+  }
+
+  Future<void> _saveGameHistory() async {
+    await HistoryService.saveGameHistory(
+      animal: widget.animal,
+      isCorrect: widget.isCorrect,
+      questionIndex: widget.questionIndex,
+      totalQuestions: widget.totalQuestions,
+      completedAt: DateTime.now(),
+    );
+  }
 
   void _showCluesDialog(BuildContext context) {
     showDialog(
