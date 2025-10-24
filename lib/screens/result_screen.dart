@@ -42,7 +42,7 @@ class ResultScreen extends StatelessWidget {
                     Icon(
                       isCorrect ? Icons.celebration : Icons.sentiment_dissatisfied,
                       size: 80,
-                      color: isCorrect ? Colors.green : Colors.red,
+                      color: isCorrect ? Colors.green : const Color.fromARGB(255, 215, 104, 96),
                     ),
                     const SizedBox(height: 16),
                     Text(
@@ -50,7 +50,7 @@ class ResultScreen extends StatelessWidget {
                         ? (isEnglish ? 'Correct!' : 'Rätt!')
                         : (isEnglish ? 'Wrong!' : 'Fel!'),
                       style: Theme.of(context).textTheme.headlineLarge?.copyWith(
-                        color: isCorrect ? Colors.green : Colors.red,
+                        color: isCorrect ? Colors.green : const Color.fromARGB(255, 215, 104, 96),
                         fontWeight: FontWeight.bold,
                       ),
                       textAlign: TextAlign.center,
