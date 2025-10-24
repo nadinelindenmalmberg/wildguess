@@ -131,7 +131,7 @@ Return ONLY a JSON array of 5 strings.
   }
 });
 
-app.listen(port, 'localhost', () => {
+app.listen(port, '0.0.0.0', () => {
   console.log(`Server running on http://localhost:${port}`);
   console.log('Available endpoints:');
   console.log('  GET  /health - Health check');
