@@ -140,7 +140,7 @@ class _QuizScreenState extends State<QuizScreen> {
         if (mounted) {
           setState(() {
             _searchResults = results;
-            _filtered = results.map((animal) => animal.name).take(6).toList();
+            _filtered = results.map((animal) => animal.name).take(3).toList();
             _isSearching = false;
           });
         }
@@ -439,10 +439,15 @@ class _QuizScreenState extends State<QuizScreen> {
                                           ),
                                         )
                                       : _filtered.isNotEmpty
-                                          ? ListView.separated(
-                                              shrinkWrap: true,
-                                              physics: const NeverScrollableScrollPhysics(),
-                                              itemCount: _filtered.length,
+                                          ? Container(
+                                              height: 200,
+                                              decoration: BoxDecoration(
+                                                border: Border.all(color: Colors.black12),
+                                                borderRadius: BorderRadius.circular(12),
+                                              ),
+                                              child: ListView.separated(
+                                                physics: const BouncingScrollPhysics(),
+                                                itemCount: _filtered.length,
                                               separatorBuilder: (_, __) => const Divider(height: 1, color: Colors.black12),
                                               itemBuilder: (context, index) {
                                                 final suggestion = _filtered[index];
@@ -497,7 +502,8 @@ class _QuizScreenState extends State<QuizScreen> {
                                                   ),
                                                 );
                                               },
-                                            )
+                                            ),
+                                          )
                                           : _searchController.text.length >= 2
                                               ? Padding(
                                                   padding: const EdgeInsets.all(16),
