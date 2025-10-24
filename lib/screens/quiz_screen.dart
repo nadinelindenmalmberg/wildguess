@@ -1,6 +1,9 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../models/animal_data.dart';
+import '../services/ai_clue_service.dart';
+import '../services/api_service.dart';
 import 'quiz_result_screen.dart';
 import 'home_screen.dart';
 
@@ -28,53 +31,129 @@ class _QuizScreenState extends State<QuizScreen> {
 
   final TextEditingController _searchController = TextEditingController();
   final FocusNode _searchFocusNode = FocusNode();
+  final AiClueService _aiClueService = AiClueService();
+  final ApiService _apiService = ApiService();
 
-  final List<String> _allAnimals = const [
-    'Rabbit', 'White tailed rabbit', 'Brown Canadian rabbit', 'Hare',
-    'Arctic hare', 'Mountain hare', 'Pika', 'Mouse', 'Rat', 'Squirrel', 'Fox',
-    'Red fox', 'Arctic fox', 'Wolf', 'Bear', 'Brown bear', 'Polar bear', 'Deer',
-    'Moose', 'Elk',
-    // Lägg till fler djur här vid behov
-  ];
+  List<String> _aiClues = [];
+  bool _isLoadingAiClues = false;
 
+  List<AnimalData> _searchResults = [];
   List<String> _filtered = const [];
+  bool _isSearching = false;
+  bool _hasChosenSuggestion = false;
   bool _isIncorrect = false;
   bool _isCorrect = false;
   String? _selectedAnswer;
+  
+  // Debouncing timer to prevent excessive API calls
+  Timer? _searchDebounceTimer;
 
   @override
   void initState() {
     super.initState();
     _searchController.addListener(_onQueryChanged);
+    _generateAiClues();
+  }
+
+  Future<void> _generateAiClues() async {
+    if (_aiClues.isNotEmpty) return; // Already generated
+    
+    setState(() {
+      _isLoadingAiClues = true;
+    });
+
+    try {
+      final clues = await _aiClueService.generateClues(
+        widget.animal,
+        isEnglish: widget.isEnglish,
+      );
+      
+      if (mounted) {
+        setState(() {
+          _aiClues = clues;
+          _isLoadingAiClues = false;
+        });
+      }
+    } catch (e) {
+      print('Failed to generate AI clues: $e');
+      if (mounted) {
+        setState(() {
+          _isLoadingAiClues = false;
+        });
+      }
+    }
   }
 
   @override
   void dispose() {
+    _searchDebounceTimer?.cancel();
     _searchController.removeListener(_onQueryChanged);
     _searchController.dispose();
     _searchFocusNode.dispose();
+    _aiClueService.dispose();
+    _apiService.dispose();
     super.dispose();
   }
 
   void _onQueryChanged() {
-    final query = _searchController.text.trim().toLowerCase();
+    final query = _searchController.text.trim();
+    
+    // Cancel previous timer
+    _searchDebounceTimer?.cancel();
+    
     if (query.isEmpty) {
       setState(() {
         _filtered = const [];
+        _searchResults = [];
+        _hasChosenSuggestion = false;
+        _isIncorrect = false;
+        _isCorrect = false;
+        _selectedAnswer = null;
+        _isSearching = false;
+      });
+      return;
+    }
+    
+    if (query.length < 2) {
+      setState(() {
+        _filtered = const [];
+        _searchResults = [];
+        _isSearching = false;
+      });
+      return;
+    }
+    
+    // Debounce the search - wait 300ms after user stops typing
+    _searchDebounceTimer = Timer(const Duration(milliseconds: 300), () async {
+      if (!mounted) return;
+      
+      setState(() {
+        _isSearching = true;
+        _hasChosenSuggestion = false;
         _isIncorrect = false;
         _isCorrect = false;
         _selectedAnswer = null;
       });
-      return;
-    }
-    setState(() {
-      _filtered = _allAnimals
-          .where((name) => name.toLowerCase().contains(query))
-          .take(6) // Behåll .take(6) så att listan KAN skrollas om det finns fler än 3 träffar
-          .toList();
-      _isIncorrect = false;
-      _isCorrect = false;
-      _selectedAnswer = null;
+      
+      try {
+        final results = await _apiService.searchSpecies(query);
+        if (mounted) {
+          setState(() {
+            _searchResults = results;
+            _filtered = results.map((animal) => animal.name).take(6).toList();
+            _isSearching = false;
+          });
+        }
+      } catch (e) {
+        if (mounted) {
+          setState(() {
+            _searchResults = [];
+            _filtered = const [];
+            _isSearching = false;
+          });
+          print('Search error: $e');
+        }
+      }
     });
   }
 
@@ -286,9 +365,23 @@ class _QuizScreenState extends State<QuizScreen> {
                           width: double.infinity,
                           padding: const EdgeInsets.all(18),
                           decoration: BoxDecoration(
-                            color: Colors.transparent, // Behålls transparent
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: _newColor, width: 2), // Ändrad
+                            color: _isIncorrect 
+                                ? const Color.fromARGB(255, 223, 102, 102) 
+                                : const Color(0xFFF8FAFC),
+                            borderRadius: BorderRadius.circular(30),
+                            border: Border.all(
+                              color: _isIncorrect 
+                                  ? const Color.fromARGB(255, 223, 102, 102).withOpacity(0.3)
+                                  : Colors.white.withOpacity(0.2),
+                              width: 1,
+                            ),
+                            boxShadow: _isIncorrect ? null : [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.1),
+                                blurRadius: 10,
+                                offset: const Offset(0, 4),
+                              ),
+                            ],
                           ),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.center,
@@ -308,112 +401,117 @@ class _QuizScreenState extends State<QuizScreen> {
                             ],
                           ),
                         ),
-                        const SizedBox(height: 24),
-
-                        // Textfält och förslag
-                        Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Container(
-                              height: 60, padding: const EdgeInsets.symmetric(horizontal: 20),
-                              decoration: BoxDecoration(
-                                // Bakgrundsfärg för textfältet (ej ändrad från F8FAFC när korrekt)
-                                color: _isIncorrect
-                                    ? const Color.fromARGB(255, 235, 88, 88) // Behåll röd vid fel
-                                    : _newColor,
-                                borderRadius: BorderRadius.circular(30),
-                                border: Border.all(
-                                  // Ändrad från Colors.white.withOpacity(0.2) -> _newTextColor.withOpacity(0.2)
-                                  color: _isIncorrect ? const Color.fromARGB(255, 235, 88, 88).withOpacity(0.3) : _newColor.withOpacity(0.2),
-                                  width: 1),
-                                boxShadow: _isIncorrect ? null : [BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 10, offset: const Offset(0, 4))],
-                              ),
-                              child: Row(
-                                children: [
-                                  Expanded(
-                                    child: TextField(
-                                      controller: _searchController, focusNode: _searchFocusNode,
-                                      textAlign: _isCorrect || _isIncorrect ? TextAlign.center : TextAlign.start,
-                                      readOnly: _isCorrect || _isIncorrect, enabled: !_isCorrect && !_isIncorrect,
-                                      style: GoogleFonts.ibmPlexMono(
-                                        fontSize: 17,
-                                        // Textfärg när fel (behålls vit för kontrast mot rött)
-                                        color: _isIncorrect ? Colors.white : const Color(0xFF1F2937), // Behåll mörk text när korrekt
-                                        fontWeight: FontWeight.w500),
-                                      decoration: InputDecoration(
-                                        hintText: widget.isEnglish ? 'Guess the animal' : 'Gissa djuret',
-                                        hintStyle: GoogleFonts.ibmPlexMono(
-                                          // Hint text färg när fel (använder nya färgen lätt transparent)
-                                          color: _isIncorrect ? _newColor.withOpacity(0.7) : const Color(0xFF6B7280), // Behåll gråaktig när korrekt
-                                          fontSize: 17, fontWeight: FontWeight.w400),
-                                        border: InputBorder.none, isCollapsed: true,
-                                      ),
-                                    ),
+                        
+                        // Search suggestions dropdown
+                        AnimatedSwitcher(
+                          duration: const Duration(milliseconds: 180),
+                          child: _searchFocusNode.hasFocus && !_isIncorrect && !_isCorrect
+                              ? Container(
+                                  key: const ValueKey('suggestions'),
+                                  margin: const EdgeInsets.only(top: 8),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFE7EFE7),
+                                    borderRadius: BorderRadius.circular(12),
                                   ),
-                                  if (!_isIncorrect && !_isCorrect) ...[
-                                    const SizedBox(width: 12),
-                                    // Ikonfärg (behålls gråaktig)
-                                    const Icon(Icons.search_rounded, color: Color(0xFF6B7280), size: 22),
-                                  ],
-                                ],
-                              ),
-                            ),
-                            // Suggestions dropdown (oförändrad, använder redan den önskade färgen)
-                            AnimatedSwitcher(
-                                duration: const Duration(milliseconds: 180),
-                                child: _filtered.isNotEmpty && _searchFocusNode.hasFocus && !_isIncorrect && !_isCorrect
-                                    ? Container(
-                                        key: const ValueKey('suggestions'),
-                                        margin: const EdgeInsets.only(top: 8),
-                                        // Här är färgen du ville använda: 0xFFE7EFE7
-                                        decoration: BoxDecoration(color: const Color(0xFFE7EFE7), borderRadius: BorderRadius.circular(12)),
-                                        
-                                        // +++ LÖSNING 1: Begränsa höjden till ca 3 rader +++
-                                        constraints: const BoxConstraints(
-                                          // (Padding 14*2 + Text ~20) * 3 items + (Divider 1px * 2) ≈ 146
-                                          maxHeight: 146.0,
-                                        ),
-                                        // +++ SLUT LÖSNING 1 +++
-
-                                        child: ListView.separated(
-                                          shrinkWrap: true,
-
-                                          // +++ LÖSNING 2: Gör listan skrollbar +++
-                                          physics: const ClampingScrollPhysics(), // Byt från NeverScrollableScrollPhysics
-                                          // +++ SLUT LÖSNING 2 +++
-
-                                          itemCount: _filtered.length,
-                                          separatorBuilder: (_, __) => const Divider(height: 1, color: Colors.black12), // Behåll svart separator för kontrast
-                                          itemBuilder: (context, index) {
-                                            final suggestion = _filtered[index];
-                                            return InkWell(
-                                              borderRadius: index == 0 || index == _filtered.length - 1
-                                                  ? BorderRadius.only(
-                                                      topLeft: Radius.circular(index == 0 ? 12 : 0),
-                                                      topRight: Radius.circular(index == 0 ? 12 : 0),
-                                                      bottomLeft: Radius.circular(index == _filtered.length - 1 ? 12 : 0),
-                                                      bottomRight: Radius.circular(index == _filtered.length - 1 ? 12 : 0),
-                                                    )
-                                                  : BorderRadius.zero,
-                                              onTap: () {
-                                                _searchController.text = suggestion; _searchFocusNode.unfocus();
-                                                setState(() { _filtered = const []; _isIncorrect = false; _isCorrect = false; _selectedAnswer = suggestion; });
-                                              },
-                                              child: Padding(
-                                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                                                child: Align(
-                                                  alignment: Alignment.centerLeft,
-                                                  // Behåll svart text i förslagen för kontrast
-                                                  child: Text(suggestion, style: GoogleFonts.ibmPlexMono(fontSize: 16, color: Colors.black)),
+                                  child: _isSearching
+                                      ? Padding(
+                                          padding: const EdgeInsets.all(16),
+                                          child: Row(
+                                            mainAxisAlignment: MainAxisAlignment.center,
+                                            children: [
+                                              const SizedBox(
+                                                width: 16,
+                                                height: 16,
+                                                child: CircularProgressIndicator(
+                                                  strokeWidth: 2,
+                                                  valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF1F2937)),
                                                 ),
                                               ),
-                                            );
-                                          },
-                                        ),
-                                      )
-                                    : const SizedBox.shrink(),
-                              ),
-                          ],
+                                              const SizedBox(width: 12),
+                                              Text(
+                                                'Söker arter...',
+                                                style: GoogleFonts.ibmPlexMono(
+                                                  fontSize: 14,
+                                                  color: const Color(0xFF1F2937),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        )
+                                      : _filtered.isNotEmpty
+                                          ? ListView.separated(
+                                              shrinkWrap: true,
+                                              physics: const NeverScrollableScrollPhysics(),
+                                              itemCount: _filtered.length,
+                                              separatorBuilder: (_, __) => const Divider(height: 1, color: Colors.black12),
+                                              itemBuilder: (context, index) {
+                                                final suggestion = _filtered[index];
+                                                final animalData = _searchResults.length > index ? _searchResults[index] : null;
+                                                return InkWell(
+                                                  borderRadius: index == 0 || index == _filtered.length - 1
+                                                      ? BorderRadius.only(
+                                                          topLeft: Radius.circular(index == 0 ? 12 : 0),
+                                                          topRight: Radius.circular(index == 0 ? 12 : 0),
+                                                          bottomLeft: Radius.circular(index == _filtered.length - 1 ? 12 : 0),
+                                                          bottomRight: Radius.circular(index == _filtered.length - 1 ? 12 : 0),
+                                                        )
+                                                      : BorderRadius.zero,
+                                                  onTap: () {
+                                                    _searchController.text = suggestion;
+                                                    _searchFocusNode.unfocus();
+                                                    setState(() {
+                                                      _filtered = const [];
+                                                      _searchResults = [];
+                                                      _hasChosenSuggestion = true;
+                                                      _isIncorrect = false;
+                                                      _isCorrect = false;
+                                                      _selectedAnswer = suggestion;
+                                                    });
+                                                  },
+                                                  child: Padding(
+                                                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                                    child: Column(
+                                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                                      children: [
+                                                        Text(
+                                                          suggestion,
+                                                          style: GoogleFonts.ibmPlexMono(
+                                                            fontSize: 15,
+                                                            color: const Color(0xFF1F2937),
+                                                            fontWeight: FontWeight.w600,
+                                                          ),
+                                                        ),
+                                                        if (animalData?.scientificName.isNotEmpty == true) ...[
+                                                          const SizedBox(height: 2),
+                                                          Text(
+                                                            animalData!.scientificName,
+                                                            style: GoogleFonts.ibmPlexMono(
+                                                              fontSize: 13,
+                                                              color: const Color(0xFF6B7280),
+                                                              fontStyle: FontStyle.italic,
+                                                            ),
+                                                          ),
+                                                        ],
+                                                      ],
+                                                    ),
+                                                  ),
+                                                );
+                                              },
+                                            )
+                                          : _searchController.text.length >= 2
+                                              ? Padding(
+                                                  padding: const EdgeInsets.all(16),
+                                                  child: Text(
+                                                    'Inga arter hittades för "${_searchController.text}"',
+                                                    style: GoogleFonts.ibmPlexMono(
+                                                      fontSize: 14,
+                                                      color: const Color(0xFF6B7280),
+                                                    ),
+                                                  ),
+                                                )
+                                              : const SizedBox.shrink(),
+                                )
+                              : const SizedBox.shrink(),
                         ),
                       ],
                     ),
@@ -583,11 +681,28 @@ class _QuizScreenState extends State<QuizScreen> {
 
   // --- Övriga metoder (_getClueText, _checkAnswer, _goToNextQuestion) är oförändrade ---
   String _getClueText() {
+    // Show loading message while AI clues are being generated
+    if (_isLoadingAiClues) {
+      return widget.isEnglish 
+          ? 'Generating AI clues...'
+          : 'Genererar AI-ledtrådar...';
+    }
+    
+    // Use AI clues if available
+    if (_aiClues.isNotEmpty) {
+      final clueIndex = (widget.questionIndex - 1) % _aiClues.length;
+      return _aiClues[clueIndex];
+    }
+    
+    // Fallback to API hints only if AI failed
     if (widget.animal.hints.isNotEmpty) {
       final hintIndex = (widget.questionIndex - 1) % widget.animal.hints.length;
       return widget.animal.hints[hintIndex];
     }
-    return widget.isEnglish ? 'Can you guess this animal?' : 'Kan du gissa detta djur?';
+    
+    return widget.isEnglish 
+        ? 'Can you guess this animal?'
+        : 'Kan du gissa detta djur?';
   }
 
   void _checkAnswer() {

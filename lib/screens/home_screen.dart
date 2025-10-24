@@ -6,7 +6,8 @@ import '../utils/translation_extension.dart';
 import '../widgets/loading_widget.dart';
 import '../widgets/error_widget.dart';
 import 'quiz_screen.dart';
-import 'tutorial_screen.dart'; // <--- NY IMPORT: Importera den nya skärmen
+import 'tutorial_screen.dart';
+import 'history_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -89,7 +90,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 const SizedBox(height: 40),
                 
                 // Main content
-                Expanded(
+                Flexible(
                   child: FutureBuilder<AnimalData>(
                     future: _animalFuture,
                     builder: (context, snapshot) {
@@ -243,7 +244,12 @@ class _HomeScreenState extends State<HomeScreen> {
                                       child: InkWell(
                                         borderRadius: BorderRadius.circular(16),
                                         onTap: () {
-                                          // History functionality
+                                          Navigator.push(
+                                            context,
+                                            MaterialPageRoute(
+                                              builder: (context) => HistoryScreen(isEnglish: isEnglish),
+                                            ),
+                                          );
                                         },
                                         child: Center(
                                           child: Row(

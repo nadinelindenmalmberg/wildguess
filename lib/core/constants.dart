@@ -6,6 +6,7 @@ class AppConstants {
   
   // Taxon IDs
   static const int mammalTaxonId = 4000107;
+  static const int speciesCategoryId = 17; // Category ID for individual species
   
   // API Headers
   static const Map<String, String> defaultHeaders = {
