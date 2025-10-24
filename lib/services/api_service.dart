@@ -447,7 +447,7 @@ class ApiService {
   }
 
   /// Fast search for species by partial name match (using cached data)
-  Future<List<AnimalData>> searchSpecies(String searchTerm) async {
+  Future<List<AnimalData>> searchSpecies(String searchTerm, {bool isEnglish = false}) async {
     try {
       print('[ApiService] Fast searching for species with term: "$searchTerm"');
       
@@ -457,17 +457,31 @@ class ApiService {
       // Filter by search term (very fast - no API calls)
       final searchTermLower = searchTerm.toLowerCase().trim();
       
-      // Create English name mappings for common Swedish animals
+      // Create comprehensive English name mappings for Swedish animals
       final englishNames = {
         'igelkott': 'hedgehog',
+        'piggsvin': 'hedgehog',
         'lodjur': 'lynx',
+        'lo': 'lynx',
         'varg': 'wolf',
+        'ulv': 'wolf',
         'björn': 'bear',
+        'brunbjörn': 'brown bear',
+        'isbjörn': 'polar bear',
         'räv': 'fox',
+        'rödräv': 'red fox',
+        'fjällräv': 'arctic fox',
         'älg': 'moose',
         'hjort': 'deer',
+        'kronhjort': 'red deer',
+        'rådjur': 'roe deer',
+        'dovhjort': 'fallow deer',
+        'ren': 'reindeer',
         'hare': 'hare',
+        'skogshare': 'mountain hare',
+        'fälthare': 'brown hare',
         'ekorre': 'squirrel',
+        'rödekorre': 'red squirrel',
         'utter': 'otter',
         'bäver': 'beaver',
         'iller': 'marten',
@@ -475,13 +489,17 @@ class ApiService {
         'vessla': 'weasel',
         'grävling': 'badger',
         'vildsvin': 'wild boar',
-        'rådjur': 'roe deer',
-        'kronhjort': 'red deer',
-        'skogshare': 'mountain hare',
-        'fälthare': 'brown hare',
-        'rödräv': 'red fox',
-        'fjällräv': 'arctic fox',
-        'brunbjörn': 'brown bear',
+        'gris': 'pig',
+        'svin': 'pig',
+        'tumlare': 'harbour porpoise',
+        'gråsäl': 'grey seal',
+        'knubbsäl': 'harbour seal',
+        'ringed seal': 'ringed seal',
+        'val': 'whale',
+        'delfin': 'dolphin',
+        'fladdermus': 'bat',
+        'näbbmus': 'shrew',
+        'mullvad': 'mole',
       };
       
       final matchingSpecies = allSpecies
@@ -489,26 +507,57 @@ class ApiService {
             final swedishName = animal.name.toLowerCase();
             final scientificName = animal.scientificName.toLowerCase();
             
-            // Direct matches
+            // Direct matches (Swedish names and scientific names)
             if (swedishName.contains(searchTermLower) || 
                 scientificName.contains(searchTermLower)) {
               return true;
             }
             
-            // English name matches
-            final englishName = englishNames[searchTermLower];
-            if (englishName != null) {
-              if (swedishName.contains(englishName) || 
-                  scientificName.contains(englishName)) {
-                return true;
-              }
-            }
-            
-            // Reverse lookup - if searching for English name, find Swedish
-            for (final entry in englishNames.entries) {
-              if (entry.value.toLowerCase().contains(searchTermLower)) {
-                if (swedishName.contains(entry.key)) {
+            // If searching in English mode, prioritize English name matches
+            if (isEnglish) {
+              // Direct English name lookup
+              final englishName = englishNames[searchTermLower];
+              if (englishName != null) {
+                if (swedishName.contains(englishName) || 
+                    scientificName.contains(englishName)) {
                   return true;
+                }
+              }
+              
+              // Reverse lookup - if searching for English name, find Swedish
+              for (final entry in englishNames.entries) {
+                if (entry.value.toLowerCase().contains(searchTermLower)) {
+                  if (swedishName.contains(entry.key)) {
+                    return true;
+                  }
+                }
+              }
+              
+              // Also search for partial English matches
+              for (final entry in englishNames.entries) {
+                if (entry.value.toLowerCase().contains(searchTermLower) ||
+                    searchTermLower.contains(entry.value.toLowerCase())) {
+                  if (swedishName.contains(entry.key)) {
+                    return true;
+                  }
+                }
+              }
+            } else {
+              // Swedish mode - use existing logic
+              final englishName = englishNames[searchTermLower];
+              if (englishName != null) {
+                if (swedishName.contains(englishName) || 
+                    scientificName.contains(englishName)) {
+                  return true;
+                }
+              }
+              
+              // Reverse lookup - if searching for English name, find Swedish
+              for (final entry in englishNames.entries) {
+                if (entry.value.toLowerCase().contains(searchTermLower)) {
+                  if (swedishName.contains(entry.key)) {
+                    return true;
+                  }
                 }
               }
             }

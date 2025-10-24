@@ -136,7 +136,7 @@ class _QuizScreenState extends State<QuizScreen> {
       });
       
       try {
-        final results = await _apiService.searchSpecies(query);
+        final results = await _apiService.searchSpecies(query, isEnglish: widget.isEnglish);
         if (mounted) {
           setState(() {
             _searchResults = results;
