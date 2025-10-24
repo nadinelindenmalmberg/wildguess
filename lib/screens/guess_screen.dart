@@ -51,6 +51,7 @@ class _GuessScreenState extends State<GuessScreen> {
           isCorrect: isCorrect,
           questionIndex: 1,
           totalQuestions: 1,
+          aiClues: const [], // Empty list since this is a simple guess screen
         ),
       ),
     );
