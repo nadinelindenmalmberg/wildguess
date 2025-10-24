@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../models/animal_data.dart';
-import 'result_screen.dart';
+import 'quiz_result_screen.dart';
 
 class GuessScreen extends StatefulWidget {
   final AnimalData animal;
@@ -45,11 +45,12 @@ class _GuessScreenState extends State<GuessScreen> {
     Navigator.pushReplacement(
       context,
       MaterialPageRoute(
-        builder: (context) => ResultScreen(
+        builder: (context) => QuizResultScreen(
           animal: widget.animal,
-          userGuess: guess,
-          isCorrect: isCorrect,
           isEnglish: widget.isEnglish,
+          isCorrect: isCorrect,
+          questionIndex: 1,
+          totalQuestions: 1,
         ),
       ),
     );
