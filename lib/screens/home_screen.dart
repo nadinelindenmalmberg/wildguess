@@ -6,6 +6,7 @@ import '../utils/translation_extension.dart';
 import '../widgets/loading_widget.dart';
 import '../widgets/error_widget.dart';
 import 'quiz_screen.dart';
+import 'tutorial_screen.dart';
 import 'history_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -292,7 +293,15 @@ class _HomeScreenState extends State<HomeScreen> {
                                       child: InkWell(
                                         borderRadius: BorderRadius.circular(16),
                                         onTap: () {
-                                          // How to play functionality
+                                          // <--- HÄR ÄR DEN UPPDATERADE LOGIKEN
+                                          Navigator.push(
+                                            context,
+                                            MaterialPageRoute(
+                                              builder: (context) => HowToPlayScreen(
+                                                isEnglish: isEnglish,
+                                              ),
+                                            ),
+                                          );
                                         },
                                         child: Center(
                                           child: Row(

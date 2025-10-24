@@ -5,6 +5,7 @@ import '../models/animal_data.dart';
 import '../services/ai_clue_service.dart';
 import '../services/api_service.dart';
 import 'quiz_result_screen.dart';
+import 'home_screen.dart';
 
 class QuizScreen extends StatefulWidget {
   final AnimalData animal;
@@ -25,6 +26,9 @@ class QuizScreen extends StatefulWidget {
 }
 
 class _QuizScreenState extends State<QuizScreen> {
+  // Definiera färgen som ska ersätta vitt
+  static const Color _newColor = Color(0xFFE7EFE7);
+
   final TextEditingController _searchController = TextEditingController();
   final FocusNode _searchFocusNode = FocusNode();
   final AiClueService _aiClueService = AiClueService();
@@ -153,120 +157,213 @@ class _QuizScreenState extends State<QuizScreen> {
     });
   }
 
+  // Visar "Hur man spelar"-dialogen (använder showDialog med anpassat tema)
+  void _showHowToPlayDialog(BuildContext context) {
+    final String title = widget.isEnglish ? 'How to Play' : 'Hur man spelar';
+    final List<Map<String, String>> instructions = [
+       {
+        'title_en': 'Guess the Animal',
+        'title_sv': 'Gissa Djuret',
+        'body_en':
+            'You will be presented with 5 questions in decreasing difficulty, about a specific swedish mammal. Your goal is simple: guess the animal!',
+        'body_sv':
+            'Du kommer att presenteras med 5 frågor i fallande svårighetsgrad, om ett specifikt svenskt däggdjur. Ditt mål är enkelt: gissa djuret!',
+      },
+      {
+        'title_en': 'Daily game',
+        'title_sv': 'Dagligt spel',
+        'body_en':
+            'You can play the game once per day. After 24 hours, you will be able to play the game again, with a new animal.',
+        'body_sv':
+            'Du kan spela spelet en gång per dag. Efter 24 timmar kommer du att kunna spela spelet igen, med ett nytt djur.',
+      },
+      {
+        'title_en': 'Highest Score',
+        'title_sv': 'Högsta Poängen',
+        'body_en':
+            'The fewer guesses it takes to guess the correct animal, the higher your score will be!',
+        'body_sv':
+            'Ju färre frågor du använder för att gissa det korrekta djuret, desto högre blir din poäng!',
+      },
+      {
+        'title_en': 'One Chance Only',
+        'title_sv': 'Bara en chans',
+        'body_en':
+            'You get only one attempt to submit your final guess per question. Make sure you are confident before you lock it in!',
+        'body_sv':
+            'Du får bara ett försök att skicka in din slutgiltiga gissning per fråga. Se till att du är säker innan du låser den!',
+      },
+    ];
+
+    showDialog(
+      context: context,
+      barrierColor: Colors.black.withOpacity(0.75), // Mörk "dimma"
+      builder: (BuildContext context) {
+        // Sveper in i ett mörkt tema för att matcha skärmens UI
+        return Theme(
+          data: ThemeData.dark().copyWith(
+            textTheme: GoogleFonts.ibmPlexMonoTextTheme(
+              ThemeData.dark().textTheme,
+            ).copyWith(
+              titleLarge: const TextStyle(color: _newColor, fontWeight: FontWeight.w700), // Ändrad
+              bodyMedium: TextStyle(color: _newColor.withOpacity(0.8)), // Ändrad
+            ), dialogTheme: DialogThemeData(backgroundColor: const Color(0xFF1E1E1E)),
+          ),
+          child: AlertDialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+              side: BorderSide(color: _newColor.withOpacity(0.2)), // Ändrad
+            ),
+            title: Text(
+              title,
+              textAlign: TextAlign.center,
+              ),
+            titlePadding: const EdgeInsets.only(top: 24, bottom: 16), // Spacing
+            contentPadding: const EdgeInsets.only(left: 24, right: 24, top: 20), // Spacing
+            content: ConstrainedBox(
+              constraints: BoxConstraints(
+                maxHeight: MediaQuery.of(context).size.height * 0.7,
+              ),
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: instructions.map((step) {
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 20),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Icon(
+                            Icons.check_circle_outline,
+                            color: Color(0xFF10B981), // Grön check-ikon (behålls)
+                            size: 22,
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  widget.isEnglish
+                                      ? step['title_en']!
+                                      : step['title_sv']!,
+                                  style: GoogleFonts.ibmPlexMono(
+                                    fontSize: 17,
+                                    fontWeight: FontWeight.w600,
+                                    color: _newColor, // Ändrad
+                                  ),
+                                ),
+                                const SizedBox(height: 6),
+                                Text(
+                                  widget.isEnglish
+                                      ? step['body_en']!
+                                      : step['body_sv']!,
+                                  style: GoogleFonts.ibmPlexMono(
+                                    fontSize: 15,
+                                    color: _newColor.withOpacity(0.7), // Ändrad
+                                    height: 1.4,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  }).toList(),
+                ),
+              ),
+            ),
+            actions: [
+              TextButton(
+                child: Text(
+                  'OK',
+                  style: GoogleFonts.ibmPlexMono(
+                    color: _newColor, // Ändrad
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                onPressed: () {
+                  Navigator.of(context).pop();
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    final String titleText = widget.isEnglish 
+    final String titleText = widget.isEnglish
         ? 'Question ${widget.questionIndex}/${widget.totalQuestions}'
         : 'Fråga ${widget.questionIndex}/${widget.totalQuestions}';
-    
+
+    final bool canGuess = _searchController.text.trim().isNotEmpty;
+
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: Colors.black, // Behålls svart
       body: Container(
-        color: Colors.black,
+        color: Colors.black, // Behålls svart
         child: SafeArea(
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.start, // Behåll startjustering för header
               children: [
-                // Header with back button
-                Row(
+                // Header med knappar
+                 Row(
                   children: [
                     Container(
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.08),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
+                      decoration: BoxDecoration(color: _newColor.withOpacity(0.08), borderRadius: BorderRadius.circular(12)), // Ändrad
                       child: IconButton(
                         icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
-                        color: Colors.white,
-                        onPressed: () => Navigator.pop(context),
-                        style: IconButton.styleFrom(
-                          padding: const EdgeInsets.all(8),
-                          minimumSize: const Size(40, 40),
-                        ),
+                        color: _newColor, // Ändrad
+                        onPressed: () => Navigator.of(context).pushAndRemoveUntil(MaterialPageRoute(builder: (context) => const HomeScreen()), (Route<dynamic> route) => false),
+                        style: IconButton.styleFrom(padding: const EdgeInsets.all(8), minimumSize: const Size(40, 40)),
                       ),
                     ),
                     const Spacer(),
                     Container(
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.08),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
+                      decoration: BoxDecoration(color: _newColor.withOpacity(0.08), borderRadius: BorderRadius.circular(12)), // Ändrad
                       child: IconButton(
                         icon: const Icon(Icons.info_outline_rounded, size: 20),
-                        color: Colors.white,
-                        onPressed: () {},
-                        style: IconButton.styleFrom(
-                          padding: const EdgeInsets.all(8),
-                          minimumSize: const Size(40, 40),
-                        ),
+                        color: _newColor, // Ändrad
+                        onPressed: () => _showHowToPlayDialog(context),
+                        style: IconButton.styleFrom(padding: const EdgeInsets.all(8), minimumSize: const Size(40, 40)),
                       ),
                     ),
                   ],
                 ),
                 const SizedBox(height: 8),
-                
-                // Question title
+
+                // Frågetitel
                 Center(
                   child: Text(
                     titleText,
                     style: GoogleFonts.ibmPlexMono(
                       fontSize: 36,
                       fontWeight: FontWeight.w700,
-                      color: Colors.white,
+                      color: _newColor, // Ändrad
                       letterSpacing: -0.5,
                     ),
                   ),
                 ),
                 const SizedBox(height: 24),
-                
-                // Clue card
+
+                // Centrerad sektion med fast bredd för ledtråd och textfält
                 Center(
                   child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 380),
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 300),
-                      padding: const EdgeInsets.all(18),
-                      decoration: BoxDecoration(
-                        color: Colors.transparent,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: Colors.white, width: 2),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.center,
-                        children: [
-                          AnimatedDefaultTextStyle(
-                            duration: const Duration(milliseconds: 300),
-                            style: GoogleFonts.ibmPlexMono(
-                              fontSize: 18,
-                              color: Colors.white,
-                              height: 1.5,
-                            ),
-                            child: Text(
-                              _getClueText(),
-                              textAlign: TextAlign.center,
-                              maxLines: _searchController.text.isNotEmpty ? 1 : null,
-                              overflow: _searchController.text.isNotEmpty ? TextOverflow.ellipsis : null,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-                SizedBox(height: _searchController.text.isNotEmpty ? 10 : 24),
-                
-                // Search field and suggestions
-                Center(
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 380),
-                    child: Column(
+                    constraints: const BoxConstraints(maxWidth: 380), // Fast maxbredd
+                    child: Column( // Kolumn för ledtråd och textfält+förslag
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Container(
-                          height: 60,
-                          padding: const EdgeInsets.symmetric(horizontal: 20),
+                        // Ledtrådskort
+                        AnimatedContainer(
+                          duration: const Duration(milliseconds: 300),
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(18),
                           decoration: BoxDecoration(
                             color: _isIncorrect 
                                 ? const Color.fromARGB(255, 223, 102, 102) 
@@ -286,37 +383,21 @@ class _QuizScreenState extends State<QuizScreen> {
                               ),
                             ],
                           ),
-                          child: Row(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.center,
                             children: [
-                              Expanded(
-                                child: TextField(
-                                  controller: _searchController,
-                                  focusNode: _searchFocusNode,
-                                  style: GoogleFonts.ibmPlexMono(
-                                    fontSize: 17,
-                                    color: _isIncorrect ? Colors.white : const Color(0xFF1F2937),
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                  decoration: InputDecoration(
-                                    hintText: widget.isEnglish ? 'Guess the animal' : 'Gissa djuret',
-                                    hintStyle: GoogleFonts.ibmPlexMono(
-                                      color: _isIncorrect ? Colors.white70 : const Color(0xFF6B7280),
-                                      fontSize: 17,
-                                      fontWeight: FontWeight.w400,
-                                    ),
-                                    border: InputBorder.none,
-                                    isCollapsed: true,
-                                  ),
+                              AnimatedDefaultTextStyle(
+                                duration: const Duration(milliseconds: 300),
+                                style: GoogleFonts.ibmPlexMono(
+                                  fontSize: 18,
+                                  color: _newColor, // Ändrad
+                                  height: 1.5,
+                                ),
+                                child: Text(
+                                  _getClueText(),
+                                  textAlign: TextAlign.center,
                                 ),
                               ),
-                              if (!_isIncorrect) ...[
-                                const SizedBox(width: 12),
-                                Icon(
-                                  Icons.search_rounded,
-                                  color: const Color(0xFF6B7280),
-                                  size: 22,
-                                ),
-                              ],
                             ],
                           ),
                         ),
@@ -436,68 +517,59 @@ class _QuizScreenState extends State<QuizScreen> {
                     ),
                   ),
                 ),
-                
-                // Show correct/incorrect answer
-                if (_isCorrect || _isIncorrect) ...[
-                  const SizedBox(height: 24),
-                  Center(
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Text(
-                        _isCorrect 
-                            ? (widget.isEnglish ? 'Correct!' : 'Rätt!')
-                            : (widget.isEnglish ? 'Incorrect!' : 'Fel!'),
-                        style: GoogleFonts.ibmPlexMono(
-                          color: Colors.white,
-                          fontSize: 18,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-                
-                if (_isIncorrect) ...[
-                  const SizedBox(height: 24),
-                ] else if (_isCorrect) ...[
-                  const SizedBox(height: 24),
-                ] else ...[
-                  const Spacer(),
-                ],
-                
-                // Action buttons
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    if (!_isIncorrect && !_isCorrect) ...[
-                      Container(
-                        height: 56,
-                        width: 180,
-                        decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.12),
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(
-                            color: Colors.white.withOpacity(0.25),
-                            width: 1.5,
+
+                // Rätt/Fel-meddelande
+                ...(_isCorrect || _isIncorrect
+                    ? [
+                        const SizedBox(height: 24),
+                        Center(
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 16, vertical: 12),
+                            decoration: const BoxDecoration(
+                              borderRadius:
+                                  BorderRadius.all(Radius.circular(12)),
+                            ),
+                            child: Text(
+                              _isCorrect
+                                  ? (widget.isEnglish ? 'Correct!' : 'Rätt!')
+                                  : (widget.isEnglish ? 'Incorrect!' : 'Fel!'),
+                              style: GoogleFonts.ibmPlexMono(
+                                color: _newColor, // Ändrad
+                                fontSize: 24, // Större font
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
                           ),
                         ),
-                        child: Material(
-                          color: Colors.transparent,
-                          child: InkWell(
+                        const Spacer(), // Spacer efter meddelandet
+                      ]
+                    : [
+                        const Spacer(), // Spacer när inget meddelande visas
+                      ]),
+
+                // Knappar
+                Row(
+                  children: [
+                    if (!_isIncorrect && !_isCorrect) ...[
+                      // "Jag vet inte" button
+                      Expanded(
+                        child: Container(
+                          height: 56,
+                          decoration: BoxDecoration(
+                            color: _newColor.withOpacity(0.12), // Ändrad
                             borderRadius: BorderRadius.circular(16),
-                            onTap: () {
-                              _goToNextQuestion(context);
-                            },
-                            child: Center(
-                              child: Text(
-                                widget.isEnglish ? "I don't know" : "Jag vet inte",
-                                style: GoogleFonts.ibmPlexMono(
-                                  color: Colors.white,
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w500,
+                            border: Border.all(color: _newColor.withOpacity(0.25), width: 1.5), // Ändrad
+                          ),
+                          child: Material(
+                            color: Colors.transparent,
+                            child: InkWell(
+                              borderRadius: BorderRadius.circular(16),
+                              onTap: () => _goToNextQuestion(context),
+                              child: Center(
+                                child: Text(
+                                  widget.isEnglish ? "I don't know" : "Jag vet inte",
+                                  style: GoogleFonts.ibmPlexMono(color: _newColor, fontSize: 16, fontWeight: FontWeight.w500), // Ändrad
                                 ),
                               ),
                             ),
@@ -505,138 +577,91 @@ class _QuizScreenState extends State<QuizScreen> {
                         ),
                       ),
                       const SizedBox(width: 16),
-                    ],
-                    
-                    if (_isIncorrect)
+                      // "Gissa" button
                       Expanded(
-                        child: Align(
-                          alignment: Alignment.centerRight,
-                          child: Container(
-                            height: 56,
-                            padding: const EdgeInsets.symmetric(horizontal: 24),
-                            decoration: BoxDecoration(
-                              color: Colors.white,
+                        child: Container(
+                          height: 56,
+                          decoration: BoxDecoration(
+                            // Grön och grå knappfärg behålls för tydlighet
+                            color: canGuess ? const Color(0xFF10B981) : const Color(0xFF6B7280),
+                            borderRadius: BorderRadius.circular(16),
+                            boxShadow: canGuess ? [BoxShadow(color: const Color(0xFF10B981).withOpacity(0.4), blurRadius: 12, offset: const Offset(0, 4))] : null,
+                          ),
+                          child: Material(
+                            color: Colors.transparent,
+                            child: InkWell(
                               borderRadius: BorderRadius.circular(16),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withOpacity(0.1),
-                                  blurRadius: 8,
-                                  offset: const Offset(0, 2),
+                              onTap: canGuess ? _checkAnswer : null,
+                              child: Center(
+                                child: Text(
+                                  widget.isEnglish ? 'Guess' : 'Gissa',
+                                  // Textfärg i knapp behålls vit för kontrast
+                                  style: GoogleFonts.ibmPlexMono(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w600),
                                 ),
-                              ],
+                              ),
                             ),
-                            child: Material(
-                              color: Colors.transparent,
-                              child: InkWell(
-                                borderRadius: BorderRadius.circular(16),
-                                onTap: () => _goToNextQuestion(context),
-                                child: Center(
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Text(
-                                        widget.isEnglish ? 'Next question' : 'Nästa fråga',
-                                        style: GoogleFonts.ibmPlexMono(
-                                          color: Colors.black,
-                                          fontSize: 16,
-                                          fontWeight: FontWeight.w600,
-                                        ),
-                                      ),
-                                      const SizedBox(width: 8),
-                                      const Icon(
-                                        Icons.arrow_forward_rounded,
-                                        color: Colors.black,
-                                        size: 18,
-                                      ),
-                                    ],
-                                  ),
+                          ),
+                        ),
+                      ),
+                    ]
+                    // "Nästa fråga" knappen (fel svar)
+                    else if (_isIncorrect)
+                      Expanded(
+                        child: Container(
+                          height: 56, padding: const EdgeInsets.symmetric(horizontal: 24),
+                          decoration: BoxDecoration(
+                            color: _newColor, // Ändrad
+                            borderRadius: BorderRadius.circular(16),
+                            boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 8, offset: const Offset(0, 2))],
+                          ),
+                          child: Material(
+                            color: Colors.transparent,
+                            child: InkWell(
+                              borderRadius: BorderRadius.circular(16),
+                              onTap: () => _goToNextQuestion(context),
+                              child: Center(
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Text(widget.isEnglish ? 'Next question' : 'Nästa fråga',
+                                      // Ändrat från Colors.black -> Svart för kontrast
+                                      style: GoogleFonts.ibmPlexMono(color: Colors.black, fontSize: 16, fontWeight: FontWeight.w600)),
+                                    const SizedBox(width: 8),
+                                    // Ändrat från Colors.black -> Svart för kontrast
+                                    const Icon(Icons.arrow_forward_rounded, color: Colors.black, size: 18),
+                                  ],
                                 ),
                               ),
                             ),
                           ),
                         ),
                       )
+                    // "Nästa fråga" knappen (rätt svar)
                     else if (_isCorrect)
                       Expanded(
-                        child: Align(
-                          alignment: Alignment.centerRight,
-                          child: Container(
-                            height: 56,
-                            padding: const EdgeInsets.symmetric(horizontal: 24),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF10B981),
-                              borderRadius: BorderRadius.circular(16),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: const Color(0xFF10B981).withOpacity(0.3),
-                                  blurRadius: 12,
-                                  offset: const Offset(0, 4),
-                                ),
-                              ],
-                            ),
-                            child: Material(
-                              color: Colors.transparent,
-                              child: InkWell(
-                                borderRadius: BorderRadius.circular(16),
-                                onTap: () => _goToNextQuestion(context),
-                                child: Center(
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Text(
-                                        widget.isEnglish ? 'Next question' : 'Nästa fråga',
-                                        style: GoogleFonts.ibmPlexMono(
-                                          color: Colors.white,
-                                          fontSize: 16,
-                                          fontWeight: FontWeight.w600,
-                                        ),
-                                      ),
-                                      const SizedBox(width: 8),
-                                      const Icon(
-                                        Icons.arrow_forward_rounded,
-                                        color: Colors.white,
-                                        size: 18,
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                      )
-                    else
-                      Container(
-                        height: 56,
-                        width: 100,
-                        margin: const EdgeInsets.only(left: 40),
-                        decoration: BoxDecoration(
-                          color: _hasChosenSuggestion 
-                              ? const Color(0xFF10B981)
-                              : const Color(0xFF6B7280),
-                          borderRadius: BorderRadius.circular(16),
-                          boxShadow: _hasChosenSuggestion ? [
-                            BoxShadow(
-                              color: const Color(0xFF10B981).withOpacity(0.4),
-                              blurRadius: 12,
-                              offset: const Offset(0, 4),
-                            ),
-                          ] : null,
-                        ),
-                        child: Material(
-                          color: Colors.transparent,
-                          child: InkWell(
+                        child: Container(
+                          height: 56, padding: const EdgeInsets.symmetric(horizontal: 24),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF10B981), // Behålls grön
                             borderRadius: BorderRadius.circular(16),
-                            onTap: () {
-                              _checkAnswer();
-                            },
-                            child: Center(
-                              child: Text(
-                                widget.isEnglish ? 'Guess' : 'Gissa',
-                                style: GoogleFonts.ibmPlexMono(
-                                  color: Colors.white,
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w600,
+                            boxShadow: [BoxShadow(color: const Color(0xFF10B981).withOpacity(0.3), blurRadius: 12, offset: const Offset(0, 4))],
+                          ),
+                          child: Material(
+                            color: Colors.transparent,
+                            child: InkWell(
+                              borderRadius: BorderRadius.circular(16),
+                              onTap: () => _goToNextQuestion(context),
+                              child: Center(
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Text(widget.isEnglish ? 'Next question' : 'Nästa fråga',
+                                      // Behålls vit för kontrast mot grönt
+                                      style: GoogleFonts.ibmPlexMono(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w600)),
+                                    const SizedBox(width: 8),
+                                    // Behålls vit för kontrast mot grönt
+                                    const Icon(Icons.arrow_forward_rounded, color: Colors.white, size: 18),
+                                  ],
                                 ),
                               ),
                             ),
@@ -654,6 +679,7 @@ class _QuizScreenState extends State<QuizScreen> {
     );
   }
 
+  // --- Övriga metoder (_getClueText, _checkAnswer, _goToNextQuestion) är oförändrade ---
   String _getClueText() {
     // Show loading message while AI clues are being generated
     if (_isLoadingAiClues) {
@@ -682,48 +708,45 @@ class _QuizScreenState extends State<QuizScreen> {
   void _checkAnswer() {
     final answer = _searchController.text.trim().toLowerCase();
     final correctAnswer = widget.animal.name.toLowerCase();
-    
+
     if (answer == correctAnswer || answer == widget.animal.scientificName.toLowerCase()) {
       setState(() {
-        _isCorrect = true;
-        _isIncorrect = false;
-        _selectedAnswer = _searchController.text.trim();
+        _isCorrect = true; _isIncorrect = false; _selectedAnswer = _searchController.text.trim();
+        _searchFocusNode.unfocus();
       });
     } else {
       setState(() {
-        _isIncorrect = true;
-        _isCorrect = false;
-        _searchFocusNode.unfocus();
-        _filtered = const [];
+        _isIncorrect = true; _isCorrect = false;
+        _searchFocusNode.unfocus(); _filtered = const [];
       });
     }
   }
 
-  void _goToNextQuestion(BuildContext context) {
+ void _goToNextQuestion(BuildContext context) {
     final int nextIndex = widget.questionIndex + 1;
-    if (nextIndex <= widget.totalQuestions) {
-      Navigator.of(context).push(
+
+    // Kontrollera om vi är på sista frågan ELLER om svaret var korrekt
+    if (nextIndex > widget.totalQuestions || _isCorrect) {
+      // Gå till resultatskärmen
+      Navigator.of(context).pushReplacement( // Använd pushReplacement för att ersätta quiz-skärmen
         MaterialPageRoute(
-          builder: (_) => QuizScreen(
-            animal: widget.animal,
-            isEnglish: widget.isEnglish,
-            questionIndex: nextIndex,
+          builder: (_) => QuizResultScreen(
+            animal: widget.animal, isEnglish: widget.isEnglish, isCorrect: _isCorrect,
+            questionIndex: _isCorrect ? widget.questionIndex : widget.totalQuestions, // Korrekt index till resultat
             totalQuestions: widget.totalQuestions,
           ),
         ),
       );
     } else {
-      Navigator.of(context).push(
+      // Gå till nästa fråga (ersätt nuvarande skärm)
+      Navigator.of(context).pushReplacement( // Använd pushReplacement
         MaterialPageRoute(
-          builder: (_) => QuizResultScreen(
-            animal: widget.animal,
-            isEnglish: widget.isEnglish,
-            isCorrect: _isCorrect,
-            questionIndex: widget.questionIndex,
-            totalQuestions: widget.totalQuestions,
+          builder: (_) => QuizScreen(
+            animal: widget.animal, isEnglish: widget.isEnglish,
+            questionIndex: nextIndex, totalQuestions: widget.totalQuestions,
           ),
         ),
       );
     }
   }
-}
+} // Slut på _QuizScreenState
