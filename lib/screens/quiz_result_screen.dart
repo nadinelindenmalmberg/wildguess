@@ -9,8 +9,8 @@ class QuizResultScreen extends StatefulWidget {
   final AnimalData animal;
   final bool isEnglish;
   final bool isCorrect;
-  final int questionIndex;
-  final int totalQuestions;
+  final int hintIndex;
+  final int totalHints;
   final List<String> aiClues;
 
   const QuizResultScreen({
@@ -18,8 +18,8 @@ class QuizResultScreen extends StatefulWidget {
     required this.animal,
     required this.isEnglish,
     required this.isCorrect,
-    required this.questionIndex,
-    required this.totalQuestions,
+    required this.hintIndex,
+    required this.totalHints,
     required this.aiClues,
   });
 
@@ -40,8 +40,8 @@ class _QuizResultScreenState extends State<QuizResultScreen> {
     await HistoryService.saveGameHistory(
       animal: widget.animal,
       isCorrect: widget.isCorrect,
-      questionIndex: widget.questionIndex,
-      totalQuestions: widget.totalQuestions,
+      questionIndex: widget.hintIndex,
+      totalQuestions: widget.totalHints,
       completedAt: DateTime.now(),
     );
   }
@@ -490,8 +490,8 @@ class _QuizResultScreenState extends State<QuizResultScreen> {
                 Center(
                   child: Text(
                     widget.isEnglish 
-                        ? "You and 52% of other players guessed on the ${widget.questionIndex}rd try!"
-                        : "Du och 52% av andra spelare gissade på ${widget.questionIndex}:e försöket!",
+                        ? "You and 52% of other players guessed on the ${widget.hintIndex}rd try!"
+                        : "Du och 52% av andra spelare gissade på ${widget.hintIndex}:e försöket!",
                     textAlign: TextAlign.center,
                     style: GoogleFonts.ibmPlexMono(color: Colors.white70, fontSize: 12),
                   ),
@@ -520,7 +520,7 @@ class _QuizResultScreenState extends State<QuizResultScreen> {
                               animal: widget.animal,
                               isEnglish: widget.isEnglish,
                               questionIndex: 1,
-                              totalQuestions: widget.totalQuestions,
+                              totalQuestions: widget.totalHints,
                             ),
                           ),
                         );

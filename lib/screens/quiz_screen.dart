@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../models/animal_data.dart';
@@ -6,6 +7,8 @@ import '../services/ai_clue_service.dart';
 import '../services/api_service.dart';
 import 'quiz_result_screen.dart';
 import 'home_screen.dart';
+import 'package:confetti/confetti.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class QuizScreen extends StatefulWidget {
   final AnimalData animal;
@@ -44,6 +47,16 @@ class _QuizScreenState extends State<QuizScreen> {
   bool _isIncorrect = false;
   bool _isCorrect = false;
   String? _selectedAnswer;
+  bool _pressedIDontKnow = false; // Track if user pressed "I don't know" button
+  
+  // Level system state - simplified
+  int _currentLevel = 1;
+  int _maxReachedLevel = 1; // Track the furthest level reached
+  bool _isViewingPreviousLevel = false;
+  List<Map<String, dynamic>> _levelHistory = []; // Store previous level answers
+  
+  // Confetti controller
+  late ConfettiController _confettiController;
   
   // Debouncing timer to prevent excessive API calls
   Timer? _searchDebounceTimer;
@@ -53,6 +66,12 @@ class _QuizScreenState extends State<QuizScreen> {
     super.initState();
     _searchController.addListener(_onQueryChanged);
     _generateAiClues();
+    _confettiController = ConfettiController(duration: const Duration(seconds: 2));
+    
+    // Initialize level system
+    _currentLevel = widget.questionIndex;
+    _maxReachedLevel = widget.questionIndex;
+    _loadLevelHistory();
   }
 
   Future<void> _generateAiClues() async {
@@ -92,6 +111,7 @@ class _QuizScreenState extends State<QuizScreen> {
     _searchFocusNode.dispose();
     _aiClueService.dispose();
     _apiService.dispose();
+    _confettiController.dispose();
     super.dispose();
   }
 
@@ -297,14 +317,16 @@ class _QuizScreenState extends State<QuizScreen> {
   @override
   Widget build(BuildContext context) {
     final String titleText = widget.isEnglish
-        ? 'Question ${widget.questionIndex}/${widget.totalQuestions}'
-        : 'Fråga ${widget.questionIndex}/${widget.totalQuestions}';
+        ? 'Clue ${_currentLevel}/${widget.totalQuestions}'
+        : 'Ledtråd ${_currentLevel}/${widget.totalQuestions}';
 
-    final bool canGuess = _searchController.text.trim().isNotEmpty;
+    final bool canGuess = _searchController.text.trim().isNotEmpty && !_isViewingPreviousLevel;
 
     return Scaffold(
       backgroundColor: Colors.black, // Behålls svart
-      body: Container(
+      body: Stack(
+        children: [
+          Container(
         color: Colors.black, // Behålls svart
         child: SafeArea(
           child: Padding(
@@ -352,6 +374,72 @@ class _QuizScreenState extends State<QuizScreen> {
                 ),
                 const SizedBox(height: 24),
 
+                // Level navigation indicators
+                Center(
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: List.generate(widget.totalQuestions, (index) {
+                      final clueNumber = index + 1;
+                      final isCurrentLevel = clueNumber == _currentLevel;
+                      final isUnlocked = clueNumber <= _maxReachedLevel;
+                      final hasAnswer = _levelHistory.any((level) => level['levelIndex'] == clueNumber);
+                      final isCorrect = hasAnswer ? _levelHistory.firstWhere((level) => level['levelIndex'] == clueNumber)['isCorrect'] : false;
+
+                      return GestureDetector(
+                        onTap: clueNumber <= _maxReachedLevel ? () => _goToLevel(clueNumber) : null,
+                        child: Container(
+                          margin: const EdgeInsets.symmetric(horizontal: 4),
+                          width: isCurrentLevel ? 50 : 40,
+                          height: isCurrentLevel ? 50 : 40,
+                          decoration: BoxDecoration(
+                            color: isCurrentLevel
+                                ? Colors.white // white=current
+                                : hasAnswer
+                                    ? (isCorrect ? Colors.green : Colors.red) // green=correct, red=incorrect
+                                    : Colors.grey[600], // gray=untouched
+                            borderRadius: BorderRadius.circular(isCurrentLevel ? 25 : 20),
+                            border: isCurrentLevel
+                                ? Border.all(color: _newColor, width: 3)
+                                : null,
+                            boxShadow: isCurrentLevel
+                                ? [
+                                    BoxShadow(
+                                      color: _newColor.withOpacity(0.5),
+                                      blurRadius: 8,
+                                      spreadRadius: 2,
+                                    )
+                                  ]
+                                : null,
+                          ),
+                          child: Center(
+                            child: hasAnswer && !isCurrentLevel
+                                ? Icon(
+                                    _levelHistory.firstWhere((level) => level['levelIndex'] == clueNumber)['isCorrect']
+                                        ? Icons.check
+                                        : Icons.close,
+                                    color: Colors.white,
+                                    size: 20,
+                                  )
+                                : Text(
+                                    '$clueNumber',
+                                    style: GoogleFonts.ibmPlexMono(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w600,
+                                      color: isCurrentLevel
+                                          ? Colors.black
+                                          : isUnlocked
+                                              ? Colors.white
+                                              : Colors.grey[500], // Locked clues are greyed out
+                                    ),
+                                  ),
+                          ),
+                        ),
+                      );
+                    }),
+                  ),
+                ),
+                const SizedBox(height: 24),
+
                 // Centrerad sektion med fast bredd för ledtråd och textfält
                 Center(
                   child: ConstrainedBox(
@@ -365,17 +453,13 @@ class _QuizScreenState extends State<QuizScreen> {
                           width: double.infinity,
                           padding: const EdgeInsets.all(18),
                           decoration: BoxDecoration(
-                            color: _isIncorrect 
-                                ? const Color.fromARGB(255, 223, 102, 102) 
-                                : Colors.black,
+                            color: Colors.black, // Always black
                             borderRadius: BorderRadius.circular(30),
                             border: Border.all(
-                              color: _isIncorrect 
-                                  ? const Color.fromARGB(255, 223, 102, 102).withOpacity(0.3)
-                                  : Colors.white.withOpacity(0.2),
+                              color: Colors.white.withOpacity(0.2),
                               width: 1,
                             ),
-                            boxShadow: _isIncorrect ? null : [
+                            boxShadow: [
                               BoxShadow(
                                 color: Colors.black.withOpacity(0.1),
                                 blurRadius: 10,
@@ -408,16 +492,21 @@ class _QuizScreenState extends State<QuizScreen> {
                         TextField(
                           controller: _searchController,
                           focusNode: _searchFocusNode,
+                          enabled: !_isViewingPreviousLevel, // Disable when viewing previous levels
                           decoration: InputDecoration(
-                            hintText: widget.isEnglish 
-                                ? 'Type your guess here...' 
-                                : 'Skriv din gissning här...',
+                            hintText: _isViewingPreviousLevel
+                                ? (widget.isEnglish
+                                    ? 'Previous answer shown above'
+                                    : 'Tidigare svar visas ovan')
+                                : (widget.isEnglish
+                                    ? 'Type your guess here...'
+                                    : 'Skriv din gissning här...'),
                             hintStyle: GoogleFonts.ibmPlexMono(
-                              color: Colors.grey[500],
+                              color: _isViewingPreviousLevel ? Colors.grey[400] : Colors.grey[500],
                               fontSize: 16,
                             ),
                             filled: true,
-                            fillColor: Colors.white,
+                            fillColor: _isViewingPreviousLevel ? Colors.grey[200] : Colors.white,
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(16),
                               borderSide: BorderSide.none,
@@ -426,14 +515,15 @@ class _QuizScreenState extends State<QuizScreen> {
                               horizontal: 20,
                               vertical: 16,
                             ),
-                            prefixIcon: const Icon(
-                              Icons.search,
-                              color: Colors.grey,
+                            prefixIcon: Icon(
+                              _isViewingPreviousLevel ? Icons.history : Icons.search,
+                              color: _isViewingPreviousLevel ? Colors.grey[400] : Colors.grey,
                             ),
                           ),
                           style: GoogleFonts.ibmPlexMono(
                             fontSize: 16,
-                            color: Colors.black,
+                            color: _isViewingPreviousLevel ? Colors.black : Colors.black,
+                            fontWeight: _isViewingPreviousLevel ? FontWeight.w600 : FontWeight.normal,
                           ),
                           textInputAction: TextInputAction.done,
                           onSubmitted: (_) => _checkAnswer(),
@@ -565,23 +655,41 @@ class _QuizScreenState extends State<QuizScreen> {
                 ),
 
                 // Rätt/Fel-meddelande
-                ...(_isCorrect || _isIncorrect
+                ...(_isCorrect || _isIncorrect || (_isViewingPreviousLevel && _shouldShowPreviousLevelMessage())
                     ? [
                         const SizedBox(height: 24),
                         Center(
                           child: Container(
                             padding: const EdgeInsets.symmetric(
                                 horizontal: 16, vertical: 12),
-                            decoration: const BoxDecoration(
+                            decoration: BoxDecoration(
+                              color: _isViewingPreviousLevel
+                                  ? _getPreviousLevelColor()
+                                  : _isCorrect
+                                      ? Colors.green // Green background for correct
+                                      : const Color.fromARGB(255, 223, 102, 102), // Red background for incorrect
                               borderRadius:
                                   BorderRadius.all(Radius.circular(12)),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: (_isViewingPreviousLevel
+                                      ? _getPreviousLevelColor()
+                                      : _isCorrect
+                                          ? Colors.green
+                                          : const Color.fromARGB(255, 223, 102, 102)).withOpacity(0.3),
+                                  blurRadius: 8,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ],
                             ),
                             child: Text(
-                              _isCorrect
-                                  ? (widget.isEnglish ? 'Correct!' : 'Rätt!')
-                                  : (widget.isEnglish ? 'Incorrect!' : 'Fel!'),
+                              _isViewingPreviousLevel
+                                  ? _getPreviousLevelMessage()
+                                  : _isCorrect
+                                      ? (widget.isEnglish ? 'Correct!' : 'Rätt!')
+                                      : (widget.isEnglish ? 'Incorrect!' : 'Fel!'),
                               style: GoogleFonts.ibmPlexMono(
-                                color: _newColor, // Ändrad
+                                color: Colors.white, // White text for contrast
                                 fontSize: 24, // Större font
                                 fontWeight: FontWeight.w600,
                               ),
@@ -597,7 +705,7 @@ class _QuizScreenState extends State<QuizScreen> {
                 // Knappar
                 Row(
                   children: [
-                    if (!_isIncorrect && !_isCorrect) ...[
+                    if (!_isIncorrect && !_isCorrect && !_isViewingPreviousLevel) ...[
                       // "Jag vet inte" button
                       Expanded(
                         child: Container(
@@ -611,7 +719,15 @@ class _QuizScreenState extends State<QuizScreen> {
                             color: Colors.transparent,
                             child: InkWell(
                               borderRadius: BorderRadius.circular(16),
-                              onTap: () => _goToNextQuestion(context),
+                              onTap: () async {
+                                setState(() {
+                                  _isIncorrect = false; // Don't show "Fel" for "I don't know"
+                                  _isCorrect = false;
+                                  _pressedIDontKnow = true;
+                                });
+                                await _saveLevelHistory();
+                                _goToNextQuestion(context);
+                              },
                               child: Center(
                                 child: Text(
                                   widget.isEnglish ? "I don't know" : "Jag vet inte",
@@ -650,8 +766,8 @@ class _QuizScreenState extends State<QuizScreen> {
                         ),
                       ),
                     ]
-                    // "Nästa fråga" knappen (fel svar)
-                    else if (_isIncorrect)
+                    // "Nästa fråga" knappen (fel svar eller "jag vet inte")
+                    else if ((_isIncorrect || _pressedIDontKnow) && !_isViewingPreviousLevel)
                       Expanded(
                         child: Container(
                           height: 56, padding: const EdgeInsets.symmetric(horizontal: 24),
@@ -683,7 +799,7 @@ class _QuizScreenState extends State<QuizScreen> {
                         ),
                       )
                     // "Nästa fråga" knappen (rätt svar)
-                    else if (_isCorrect)
+                    else if (_isCorrect && !_isViewingPreviousLevel)
                       Expanded(
                         child: Container(
                           height: 56, padding: const EdgeInsets.symmetric(horizontal: 24),
@@ -713,6 +829,44 @@ class _QuizScreenState extends State<QuizScreen> {
                             ),
                           ),
                         ),
+                      )
+                    // "Back to current level" button when viewing previous levels
+                    else if (_isViewingPreviousLevel)
+                      Expanded(
+                        child: Container(
+                          height: 56,
+                          decoration: BoxDecoration(
+                            color: _newColor.withOpacity(0.12),
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(color: _newColor.withOpacity(0.25), width: 1.5),
+                          ),
+                          child: Material(
+                            color: Colors.transparent,
+                            child: InkWell(
+                              borderRadius: BorderRadius.circular(16),
+                              onTap: () => _goToLevel(_maxReachedLevel),
+                              child: Center(
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Text(
+                                      widget.isEnglish
+                                          ? 'Back to Level $_maxReachedLevel'
+                                          : 'Tillbaka till Nivå $_maxReachedLevel',
+                                      style: GoogleFonts.ibmPlexMono(
+                                        color: _newColor,
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w600
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Icon(Icons.arrow_forward_rounded, color: _newColor, size: 18),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
                       ),
                   ],
                 ),
@@ -722,6 +876,30 @@ class _QuizScreenState extends State<QuizScreen> {
           ),
         ),
       ),
+          // Confetti widget
+          Align(
+            alignment: Alignment.topCenter,
+            child: ConfettiWidget(
+              confettiController: _confettiController,
+              blastDirection: 1.57, // Downward
+              particleDrag: 0.05,
+              emissionFrequency: 0.05,
+              numberOfParticles: 50,
+              gravity: 0.3,
+              shouldLoop: false,
+              colors: const [
+                Colors.green,
+                Colors.blue,
+                Colors.pink,
+                Colors.orange,
+                Colors.purple,
+                Colors.yellow,
+                Colors.red,
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -730,19 +908,19 @@ class _QuizScreenState extends State<QuizScreen> {
     // Show loading message while AI clues are being generated
     if (_isLoadingAiClues) {
       return widget.isEnglish 
-          ? 'Generating AI clues...'
-          : 'Genererar AI-ledtrådar...';
+          ? 'Generating clues...'
+          : 'Genererar ledtrådar...';
     }
     
     // Use AI clues if available
     if (_aiClues.isNotEmpty) {
-      final clueIndex = (widget.questionIndex - 1) % _aiClues.length;
+      final clueIndex = (_currentLevel - 1) % _aiClues.length;
       return _aiClues[clueIndex];
     }
     
     // Fallback to API hints only if AI failed
     if (widget.animal.hints.isNotEmpty) {
-      final hintIndex = (widget.questionIndex - 1) % widget.animal.hints.length;
+      final hintIndex = (_currentLevel - 1) % widget.animal.hints.length;
       return widget.animal.hints[hintIndex];
     }
     
@@ -751,26 +929,60 @@ class _QuizScreenState extends State<QuizScreen> {
         : 'Kan du gissa detta djur?';
   }
 
-  void _checkAnswer() {
+  Future<void> _checkAnswer() async {
+    // Don't check answers when viewing previous levels
+    if (_isViewingPreviousLevel) {
+      return;
+    }
+    
     final answer = _searchController.text.trim().toLowerCase();
     final correctAnswer = widget.animal.name.toLowerCase();
 
     if (answer == correctAnswer || answer == widget.animal.scientificName.toLowerCase()) {
       setState(() {
         _isCorrect = true; _isIncorrect = false; _selectedAnswer = _searchController.text.trim();
+        _pressedIDontKnow = false;
         _searchFocusNode.unfocus();
+      });
+
+      // Trigger confetti animation
+      _confettiController.play();
+
+      // Add delay before transitioning to result screen
+      Timer(const Duration(milliseconds: 1500), () {
+        if (mounted) {
+          _goToResultScreen(context);
+        }
       });
     } else {
       setState(() {
         _isIncorrect = true; _isCorrect = false;
+        _pressedIDontKnow = false;
         _searchFocusNode.unfocus(); _filtered = const [];
       });
     }
+    await _saveLevelHistory();
+  }
+  
+  void _goToResultScreen(BuildContext context) {
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(
+        builder: (_) => QuizResultScreen(
+          animal: widget.animal,
+          isEnglish: widget.isEnglish,
+          isCorrect: _isCorrect,
+          hintIndex: widget.questionIndex,
+          totalHints: widget.totalQuestions,
+          aiClues: _aiClues,
+        ),
+      ),
+    );
   }
 
  void _goToNextQuestion(BuildContext context) {
-    final int nextIndex = widget.questionIndex + 1;
+    final int nextIndex = _currentLevel + 1;
 
+    print('DEBUG: Going to next question. Current: $_currentLevel, Next: $nextIndex');
     // Kontrollera om vi är på sista frågan ELLER om svaret var korrekt
     if (nextIndex > widget.totalQuestions || _isCorrect) {
       // Gå till resultatskärmen
@@ -780,22 +992,186 @@ class _QuizScreenState extends State<QuizScreen> {
             animal: widget.animal, 
             isEnglish: widget.isEnglish, 
             isCorrect: _isCorrect,
-            questionIndex: _isCorrect ? widget.questionIndex : widget.totalQuestions, // Korrekt index till resultat
-            totalQuestions: widget.totalQuestions,
+            hintIndex: _isCorrect ? _currentLevel : widget.totalQuestions, // Korrekt index till resultat
+            totalHints: widget.totalQuestions,
             aiClues: _aiClues, // Add the missing aiClues parameter
           ),
         ),
       );
     } else {
       // Gå till nästa fråga (ersätt nuvarande skärm)
-      Navigator.of(context).pushReplacement( // Använd pushReplacement
-        MaterialPageRoute(
-          builder: (_) => QuizScreen(
-            animal: widget.animal, isEnglish: widget.isEnglish,
-            questionIndex: nextIndex, totalQuestions: widget.totalQuestions,
-          ),
-        ),
+      setState(() {
+        _currentLevel = nextIndex;
+        _maxReachedLevel = nextIndex; // Update max reached level to the new level
+        _isViewingPreviousLevel = false;
+      });
+      _loadLevelData(); // Call _loadLevelData
+    }
+  }
+
+  // Level navigation methods
+  void _goToLevel(int levelNumber) {
+    print('DEBUG: Attempting to navigate to level $levelNumber');
+    print('DEBUG: Max reached level: $_maxReachedLevel');
+    print('DEBUG: Current level history: $_levelHistory');
+
+    if (levelNumber <= _maxReachedLevel) {
+      setState(() {
+        _currentLevel = levelNumber;
+        _isViewingPreviousLevel = levelNumber < _maxReachedLevel;
+        print('DEBUG: Successfully navigated to level $levelNumber');
+        print('DEBUG: isViewingPreviousLevel: $_isViewingPreviousLevel');
+      });
+      _loadLevelData();
+    } else {
+      print('DEBUG: Cannot navigate to level $levelNumber - not yet reached');
+    }
+  }
+
+  void _loadLevelHistory() async {
+    final prefs = await SharedPreferences.getInstance();
+    final levelHistoryJson = prefs.getString('level_history_${widget.animal.name}');
+    final maxReached = prefs.getInt('max_reached_level_${widget.animal.name}') ?? widget.questionIndex;
+
+    if (levelHistoryJson != null) {
+      try {
+        final List<dynamic> levelHistoryList = jsonDecode(levelHistoryJson);
+        _levelHistory = levelHistoryList.cast<Map<String, dynamic>>();
+        _maxReachedLevel = maxReached;
+      } catch (e) {
+        _levelHistory = [];
+      }
+    }
+    _loadLevelData();
+  }
+
+  void _loadLevelData() {
+    print('DEBUG: Loading level data for level $_currentLevel');
+    print('DEBUG: Full level history: $_levelHistory');
+
+    Map<String, dynamic>? levelData;
+    try {
+      levelData = _levelHistory.firstWhere(
+        (level) => level['levelIndex'] == _currentLevel,
       );
+    } catch (e) {
+      levelData = null;
+    }
+
+    print('DEBUG: Level data found: $levelData');
+
+    if (levelData != null && levelData.isNotEmpty) {
+      final answer = levelData['answer'] ?? '';
+      final isCorrect = levelData['isCorrect'] ?? false;
+      final isIncorrect = levelData['isIncorrect'] ?? false;
+      final pressedIDontKnow = levelData['pressedIDontKnow'] ?? false;
+
+      print('DEBUG: Loading previous answer: "$answer", isCorrect: $isCorrect, isIncorrect: $isIncorrect, pressedIDontKnow: $pressedIDontKnow');
+
+      setState(() {
+        if (pressedIDontKnow) {
+          _searchController.text = widget.isEnglish ? 'did not answer' : 'svarade inte';
+        } else {
+          _searchController.text = answer;
+        }
+        _isCorrect = isCorrect;
+        _isIncorrect = isIncorrect;
+        _pressedIDontKnow = pressedIDontKnow;
+      });
+    } else {
+      print('DEBUG: No level data found, showing blank field');
+      setState(() {
+        _searchController.clear();
+        _isCorrect = false;
+        _isIncorrect = false;
+        _selectedAnswer = null;
+      });
+    }
+  }
+
+  Future<void> _saveLevelHistory() async {
+    final answer = _searchController.text.trim();
+
+    final levelData = {
+      'levelIndex': _currentLevel,
+      'answer': answer,
+      'isCorrect': _isCorrect,
+      'isIncorrect': _isIncorrect,
+      'pressedIDontKnow': _pressedIDontKnow,
+      'timestamp': DateTime.now().toIso8601String(),
+    };
+
+    _levelHistory.removeWhere((level) => level['levelIndex'] == _currentLevel);
+    _levelHistory.add(levelData);
+
+    final prefs = await SharedPreferences.getInstance();
+    final levelHistoryJson = jsonEncode(_levelHistory);
+    await prefs.setString('level_history_${widget.animal.name}', levelHistoryJson);
+    await prefs.setInt('max_reached_level_${widget.animal.name}', _maxReachedLevel);
+
+    // Update the max reached level if we're on the current level (not viewing previous levels)
+    if (!_isViewingPreviousLevel) {
+      _maxReachedLevel = _currentLevel; // Update max reached level to the current level
+      print('DEBUG: Updated max reached level to: $_maxReachedLevel');
+    }
+  }
+
+  // Helper methods for previous level display
+  String _getPreviousLevelMessage() {
+    try {
+      final levelData = _levelHistory.firstWhere(
+        (level) => level['levelIndex'] == _currentLevel,
+      );
+      
+      final isCorrect = levelData['isCorrect'] ?? false;
+      final pressedIDontKnow = levelData['pressedIDontKnow'] ?? false;
+      
+      if (isCorrect) {
+        return widget.isEnglish ? 'Correct!' : 'Rätt!';
+      } else if (pressedIDontKnow) {
+        return ''; // No message for "I don't know"
+      } else {
+        return widget.isEnglish ? 'Incorrect!' : 'Fel!';
+      }
+    } catch (e) {
+      return widget.isEnglish ? 'No answer' : 'Inget svar';
+    }
+  }
+
+  Color _getPreviousLevelColor() {
+    try {
+      final levelData = _levelHistory.firstWhere(
+        (level) => level['levelIndex'] == _currentLevel,
+      );
+      
+      final isCorrect = levelData['isCorrect'] ?? false;
+      final pressedIDontKnow = levelData['pressedIDontKnow'] ?? false;
+      
+      if (isCorrect) {
+        return Colors.green;
+      } else if (pressedIDontKnow) {
+        return Colors.transparent; // No background for "I don't know"
+      } else {
+        return const Color.fromARGB(255, 223, 102, 102); // Red for incorrect
+      }
+    } catch (e) {
+      return Colors.grey;
+    }
+  }
+
+  bool _shouldShowPreviousLevelMessage() {
+    try {
+      final levelData = _levelHistory.firstWhere(
+        (level) => level['levelIndex'] == _currentLevel,
+      );
+      
+      final isCorrect = levelData['isCorrect'] ?? false;
+      final pressedIDontKnow = levelData['pressedIDontKnow'] ?? false;
+      
+      // Only show message for correct or incorrect answers, not for "I don't know"
+      return isCorrect || (!pressedIDontKnow && !isCorrect);
+    } catch (e) {
+      return false;
     }
   }
 } // Slut på _QuizScreenState

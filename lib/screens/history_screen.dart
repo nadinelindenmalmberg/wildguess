@@ -303,7 +303,7 @@ class _HistoryAnimalCardState extends State<HistoryAnimalCard> {
         : (widget.isEnglish ? 'Incorrect' : 'Fel');
     final resultColor = widget.isCorrect ? Colors.green : Colors.red;
     final scoreText = widget.isEnglish ? 'Score' : 'Poäng';
-    final questionText = widget.isEnglish ? 'Question' : 'Fråga';
+    final questionText = widget.isEnglish ? 'Clue' : 'Ledtråd';
     final dateText = _formatDate(widget.completedAt);
 
     return Container(

@@ -49,8 +49,8 @@ class _GuessScreenState extends State<GuessScreen> {
           animal: widget.animal,
           isEnglish: widget.isEnglish,
           isCorrect: isCorrect,
-          questionIndex: 1,
-          totalQuestions: 1,
+          hintIndex: 1,
+          totalHints: 1,
           aiClues: const [], // Empty list since this is a simple guess screen
         ),
       ),
