@@ -785,7 +785,9 @@ class _QuizScreenState extends State<QuizScreen> {
                                 child: Row(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
-                                    Text(widget.isEnglish ? 'Next question' : 'Nästa fråga',
+                                    Text(_currentLevel >= widget.totalQuestions 
+                                        ? (widget.isEnglish ? 'Finish & See Results' : 'Slutför och se resultat')
+                                        : (widget.isEnglish ? 'Next question' : 'Nästa fråga'),
                                       // Ändrat från Colors.black -> Svart för kontrast
                                       style: GoogleFonts.ibmPlexMono(color: Colors.black, fontSize: 16, fontWeight: FontWeight.w600)),
                                     const SizedBox(width: 8),
@@ -817,7 +819,9 @@ class _QuizScreenState extends State<QuizScreen> {
                                 child: Row(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
-                                    Text(widget.isEnglish ? 'Next question' : 'Nästa fråga',
+                                    Text(_currentLevel >= widget.totalQuestions 
+                                        ? (widget.isEnglish ? 'Finish & See Results' : 'Slutför och se resultat')
+                                        : (widget.isEnglish ? 'Next question' : 'Nästa fråga'),
                                       // Behålls vit för kontrast mot grönt
                                       style: GoogleFonts.ibmPlexMono(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w600)),
                                     const SizedBox(width: 8),

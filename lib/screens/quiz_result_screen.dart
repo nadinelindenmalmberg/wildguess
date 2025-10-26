@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../models/animal_data.dart';
 import '../services/history_service.dart';
+import '../services/statistics_service.dart';
 import 'home_screen.dart';
 import 'quiz_screen.dart';
 
@@ -29,11 +30,33 @@ class QuizResultScreen extends StatefulWidget {
 
 class _QuizResultScreenState extends State<QuizResultScreen> {
   bool _isExpanded = false;
+  Map<String, dynamic> _dailyStats = {};
+  bool _isLoadingStats = true;
 
   @override
   void initState() {
     super.initState();
     _saveGameHistory();
+    _loadDailyStatistics();
+  }
+
+  Future<void> _loadDailyStatistics() async {
+    try {
+      final stats = await StatisticsService.getDailyStatistics(widget.hintIndex);
+      if (mounted) {
+        setState(() {
+          _dailyStats = stats;
+          _isLoadingStats = false;
+        });
+      }
+    } catch (e) {
+      print('Error loading daily statistics: $e');
+      if (mounted) {
+        setState(() {
+          _isLoadingStats = false;
+        });
+      }
+    }
   }
 
   Future<void> _saveGameHistory() async {
@@ -43,6 +66,63 @@ class _QuizResultScreenState extends State<QuizResultScreen> {
       questionIndex: widget.hintIndex,
       totalQuestions: widget.totalHints,
       completedAt: DateTime.now(),
+    );
+  }
+
+  String _getStatisticsText() {
+    if (_dailyStats.isEmpty) {
+      return widget.isEnglish 
+          ? "You and 52% of other players guessed on the ${widget.hintIndex}rd try!"
+          : "Du och 52% av andra spelare gissade på ${widget.hintIndex}:e försöket!";
+    }
+    
+    final percentage = _dailyStats['percentage'] ?? 52;
+    final isDefault = _dailyStats['isDefault'] ?? false;
+    
+    if (isDefault) {
+      return widget.isEnglish 
+          ? "You and $percentage% of other players guessed on the ${widget.hintIndex}rd try!"
+          : "Du och $percentage% av andra spelare gissade på ${widget.hintIndex}:e försöket!";
+    } else {
+      final totalGames = _dailyStats['totalGames'] ?? 0;
+      if (totalGames < 5) {
+        return widget.isEnglish 
+            ? "You and $percentage% of other players guessed on the ${widget.hintIndex}rd try! (Based on $totalGames games)"
+            : "Du och $percentage% av andra spelare gissade på ${widget.hintIndex}:e försöket! (Baserat på $totalGames spel)";
+      } else {
+        return widget.isEnglish 
+            ? "You and $percentage% of other players guessed on the ${widget.hintIndex}rd try!"
+            : "Du och $percentage% av andra spelare gissade på ${widget.hintIndex}:e försöket!";
+      }
+    }
+  }
+
+  Widget _buildStatisticsBars() {
+    if (_dailyStats.isEmpty) {
+      // Fallback to default values
+      return Column(
+        children: [
+          _StatsRow(attempt: '1', percent: 8, isEnglish: widget.isEnglish),
+          _StatsRow(attempt: '2', percent: 11, isEnglish: widget.isEnglish),
+          _StatsRow(attempt: '3', percent: 52, highlight: true, isEnglish: widget.isEnglish),
+          _StatsRow(attempt: '4', percent: 20, isEnglish: widget.isEnglish),
+          _StatsRow(attempt: '5', percent: 9, isEnglish: widget.isEnglish),
+        ],
+      );
+    }
+    
+    final hintDistribution = _dailyStats['hintDistribution'] as Map<int, int>? ?? {};
+    
+    return Column(
+      children: [
+        for (int i = 1; i <= 5; i++)
+          _StatsRow(
+            attempt: i.toString(), 
+            percent: hintDistribution[i] ?? 0, 
+            highlight: i == widget.hintIndex,
+            isEnglish: widget.isEnglish,
+          ),
+      ],
     );
   }
 
@@ -488,22 +568,23 @@ class _QuizResultScreenState extends State<QuizResultScreen> {
                 ),
                 const SizedBox(height: 8),
                 Center(
-                  child: Text(
-                    widget.isEnglish 
-                        ? "You and 52% of other players guessed on the ${widget.hintIndex}rd try!"
-                        : "Du och 52% av andra spelare gissade på ${widget.hintIndex}:e försöket!",
-                    textAlign: TextAlign.center,
-                    style: GoogleFonts.ibmPlexMono(color: Colors.white70, fontSize: 12),
-                  ),
+                  child: _isLoadingStats 
+                    ? CircularProgressIndicator(
+                        color: Colors.white70,
+                        strokeWidth: 2,
+                      )
+                    : Text(
+                        _getStatisticsText(),
+                        textAlign: TextAlign.center,
+                        style: GoogleFonts.ibmPlexMono(color: Colors.white70, fontSize: 12),
+                      ),
                 ),
                 const SizedBox(height: 12),
                 
                 // Statistics bars
-                _StatsRow(attempt: '1', percent: 8, isEnglish: widget.isEnglish),
-                _StatsRow(attempt: '2', percent: 11, isEnglish: widget.isEnglish),
-                _StatsRow(attempt: '3', percent: 52, highlight: true, isEnglish: widget.isEnglish),
-                _StatsRow(attempt: '4', percent: 20, isEnglish: widget.isEnglish),
-                _StatsRow(attempt: '5', percent: 9, isEnglish: widget.isEnglish),
+                _isLoadingStats 
+                  ? const SizedBox(height: 100) // Placeholder while loading
+                  : _buildStatisticsBars(),
                 const SizedBox(height: 24),
                 
                 // Action buttons

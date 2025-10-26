@@ -209,7 +209,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                         ),
                                         const SizedBox(width: 12),
                                         Text(
-                                          isEnglish ? 'Play Today\'s Game' : 'Spela dagens spel',
+                                          isEnglish ? 'Guess Today\'s Animal' : 'Gissa dagens djur',
                                           style: GoogleFonts.ibmPlexMono(
                                             fontSize: 19,
                                             fontWeight: FontWeight.w600,
