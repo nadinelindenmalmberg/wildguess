@@ -7,6 +7,7 @@ import '../models/animal_data.dart';
 import '../models/taxon_response.dart';
 import '../models/species_data.dart';
 import 'image_service.dart';
+import 'statistics_service.dart';
 
 
 class ApiService {
@@ -23,12 +24,54 @@ class ApiService {
 
   ApiService({http.Client? client}) : _client = client ?? http.Client();
 
-  /// Get a random Swedish animal using the live API
+  /// Get today's animal (same for all players in production, random in test mode)
   Future<AnimalData> getRandomAnimal() async {
+    // Check if we're in test mode
+    final isTestMode = await _isTestMode();
+    
+    if (isTestMode) {
+      // Test mode: return random animal
+      try {
+        return await getRandomAnimalFromAPI();
+      } catch (e) {
+        print('[ApiService] API failed, using test animals: $e');
+        return _getTestAnimal();
+      }
+    } else {
+      // Production mode: return today's animal (same for all players)
+      return await _getTodaysAnimal();
+    }
+  }
+
+  /// Check if we're in test mode by looking at testingMode from statistics service
+  Future<bool> _isTestMode() async {
     try {
-      return await getRandomAnimalFromAPI();
+      return testingMode;
     } catch (e) {
-      print('[ApiService] API failed, using test animals: $e');
+      return false;
+    }
+  }
+
+  /// Get today's animal (same for all players)
+  Future<AnimalData> _getTodaysAnimal() async {
+    final today = DateTime.now();
+    final dayKey = '${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}';
+    
+    // For now, use a simple hash-based selection to ensure same animal per day
+    final dayHash = dayKey.hashCode;
+    final random = math.Random(dayHash);
+    
+    try {
+      final allSpecies = await _getAllSpecies();
+      if (allSpecies.isNotEmpty) {
+        final selectedAnimal = allSpecies[random.nextInt(allSpecies.length)];
+        print('[ApiService] Today\'s animal (${dayKey}): ${selectedAnimal.name}');
+        return selectedAnimal;
+      } else {
+        throw Exception('No species available');
+      }
+    } catch (e) {
+      print('[ApiService] Failed to get today\'s animal, using test animal: $e');
       return _getTestAnimal();
     }
   }

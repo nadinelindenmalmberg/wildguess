@@ -314,6 +314,7 @@ class _TestScreenState extends State<TestScreen> {
         solved: true,
         timeMs: 30000,
         animalForTesting: testingMode ? 'test_animal' : null,
+        animalName: 'test_animal',
       );
       setState(() => _status = 'Test score submitted successfully');
     } catch (e) {
@@ -335,6 +336,7 @@ class _TestScreenState extends State<TestScreen> {
         solved: false,
         timeMs: 60000,
         animalForTesting: testingMode ? 'test_animal_failed' : null,
+        animalName: 'test_animal_failed',
       );
       setState(() => _status = 'Failed score submitted successfully');
     } catch (e) {

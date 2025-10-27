@@ -1,13 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import '../services/api_service.dart';
 import '../models/animal_data.dart';
-import '../utils/translation_extension.dart';
+import '../services/api_service.dart';
+import '../services/daily_play_service.dart';
+import '../widgets/error_widget.dart' as custom;
 import '../widgets/loading_widget.dart';
-import '../widgets/error_widget.dart';
 import 'quiz_screen.dart';
-import 'tutorial_screen.dart';
-import 'history_screen.dart';
 import 'test_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -20,6 +18,38 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   bool isEnglish = false;
   late Future<AnimalData> _animalFuture;
+  bool _hasPlayedToday = false;
+  bool _isLoadingPlayStatus = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _animalFuture = _loadRandomAnimal();
+    _checkPlayStatus();
+  }
+
+  Future<void> _checkPlayStatus() async {
+    final hasPlayed = await DailyPlayService.hasPlayedToday();
+    setState(() {
+      _hasPlayedToday = hasPlayed;
+      _isLoadingPlayStatus = false;
+    });
+  }
+
+  Future<AnimalData> _loadRandomAnimal() async {
+    try {
+      return await ApiService().getRandomAnimal();
+    } catch (e) {
+      print('Error loading animal: $e');
+      rethrow;
+    }
+  }
+
+  Future<void> _refreshAnimal() async {
+    setState(() {
+      _animalFuture = _loadRandomAnimal();
+    });
+  }
 
   void _toggleLanguage() {
     setState(() {
@@ -27,39 +57,21 @@ class _HomeScreenState extends State<HomeScreen> {
     });
   }
 
-  Future<AnimalData> _loadRandomAnimal() async {
-    final apiService = ApiService();
-    return await apiService.getRandomAnimal();
-  }
-
-  void _refreshAnimal() {
-    setState(() {
-      _animalFuture = _loadRandomAnimal();
-    });
-  }
-
-  @override
-  void initState() {
-    super.initState();
-    _animalFuture = _loadRandomAnimal();
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.black,
-      body: Container(
-        color: Colors.black,
-        child: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Column(
-              children: [
-                // Header with language toggle and test button
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Column(
+            children: [
+              // Header
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(
+                    child: Text(
                       isEnglish ? 'Wild Guess' : 'Vild Gissning',
                       style: GoogleFonts.ibmPlexMono(
                         fontSize: 28,
@@ -68,102 +80,138 @@ class _HomeScreenState extends State<HomeScreen> {
                         letterSpacing: -0.5,
                       ),
                     ),
-                    Row(
-                      children: [
-                        // Test Screen Button (Debug)
-                        Container(
-                          decoration: BoxDecoration(
-                            color: Colors.red.withOpacity(0.08),
-                            borderRadius: BorderRadius.circular(12),
+                  ),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // Test Screen Button
+                      Container(
+                        decoration: BoxDecoration(
+                          color: Colors.red.withOpacity(0.08),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: IconButton(
+                          icon: const Icon(Icons.bug_report, size: 20),
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => const TestScreen(),
+                              ),
+                            );
+                          },
+                          color: Colors.red,
+                          style: IconButton.styleFrom(
+                            padding: const EdgeInsets.all(8),
+                            minimumSize: const Size(40, 40),
                           ),
-                          child: IconButton(
-                            icon: const Icon(Icons.bug_report, size: 20),
-                            onPressed: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => const TestScreen(),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      // Clear Daily Play Button
+                      Container(
+                        decoration: BoxDecoration(
+                          color: Colors.orange.withOpacity(0.08),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: IconButton(
+                          icon: const Icon(Icons.refresh, size: 20),
+                          onPressed: () async {
+                            await DailyPlayService.clearDailyPlay();
+                            _checkPlayStatus();
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                  isEnglish ? 'Daily play cleared!' : 'Dagligt spel rensat!',
+                                  style: GoogleFonts.ibmPlexMono(),
                                 ),
-                              );
-                            },
-                            color: Colors.red,
-                            style: IconButton.styleFrom(
-                              padding: const EdgeInsets.all(8),
-                              minimumSize: const Size(40, 40),
-                            ),
+                                backgroundColor: Colors.green,
+                              ),
+                            );
+                          },
+                          color: Colors.orange,
+                          style: IconButton.styleFrom(
+                            padding: const EdgeInsets.all(8),
+                            minimumSize: const Size(40, 40),
                           ),
                         ),
-                        const SizedBox(width: 8),
-                        // Language Toggle
-                        Container(
-                          decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.08),
-                            borderRadius: BorderRadius.circular(12),
+                      ),
+                      const SizedBox(width: 8),
+                      // Language Toggle
+                      Container(
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.08),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: IconButton(
+                          icon: Icon(
+                            isEnglish ? Icons.language : Icons.translate,
+                            size: 20,
                           ),
-                          child: IconButton(
-                            icon: Icon(
-                              isEnglish ? Icons.language : Icons.translate,
-                              size: 20,
-                            ),
-                            onPressed: _toggleLanguage,
-                            color: Colors.white,
-                            style: IconButton.styleFrom(
-                              padding: const EdgeInsets.all(8),
-                              minimumSize: const Size(40, 40),
-                            ),
+                          onPressed: _toggleLanguage,
+                          color: Colors.white,
+                          style: IconButton.styleFrom(
+                            padding: const EdgeInsets.all(8),
+                            minimumSize: const Size(40, 40),
                           ),
                         ),
-                      ],
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 40),
-                
-                // Main content
-                Flexible(
-                  child: FutureBuilder<AnimalData>(
-                    future: _animalFuture,
-                    builder: (context, snapshot) {
-                      if (snapshot.connectionState == ConnectionState.waiting) {
-                        return const LoadingWidget(message: 'Loading animal data...');
-                      } else if (snapshot.hasError) {
-                        return ErrorDisplayWidget(
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+              const SizedBox(height: 32),
+
+              // Main content
+              Expanded(
+                child: FutureBuilder<AnimalData>(
+                  future: _animalFuture,
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return const Center(
+                        child: LoadingWidget(),
+                      );
+                    } else if (snapshot.hasError) {
+                      return Center(
+                        child: custom.ErrorDisplayWidget(
                           message: snapshot.error.toString(),
                           onRetry: _refreshAnimal,
-                        );
-                      } else if (snapshot.hasData) {
-                        final animal = snapshot.data!;
-                        return Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            // Game icon
-                            Container(
-                              width: 120,
-                              height: 120,
-                              decoration: BoxDecoration(
-                                gradient: LinearGradient(
-                                  begin: Alignment.topLeft,
-                                  end: Alignment.bottomRight,
-                                  colors: [
-                                    Colors.white.withOpacity(0.15),
-                                    Colors.white.withOpacity(0.05),
-                                  ],
-                                ),
-                                borderRadius: BorderRadius.circular(60),
-                                border: Border.all(
-                                  color: Colors.white.withOpacity(0.2),
-                                  width: 1,
-                                ),
+                        ),
+                      );
+                    } else if (snapshot.hasData) {
+                      final animal = snapshot.data!;
+                      return Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          // Game icon
+                          Container(
+                            width: 120,
+                            height: 120,
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                                colors: [
+                                  Colors.white.withOpacity(0.15),
+                                  Colors.white.withOpacity(0.05),
+                                ],
                               ),
-                              child: const Icon(
-                                Icons.pets,
-                                size: 60,
-                                color: Colors.white,
+                              borderRadius: BorderRadius.circular(60),
+                              border: Border.all(
+                                color: Colors.white.withOpacity(0.2),
+                                width: 1,
                               ),
                             ),
-                            const SizedBox(height: 32),
-                            
-                            // Title
+                            child: const Icon(
+                              Icons.pets,
+                              size: 60,
+                              color: Colors.white,
+                            ),
+                          ),
+                          const SizedBox(height: 32),
+
+                          // Title (only show if not played today)
+                          if (!_hasPlayedToday) ...[
                             Text(
                               isEnglish ? 'Ready to Play!' : 'Redo att spela!',
                               style: GoogleFonts.ibmPlexMono(
@@ -175,23 +223,138 @@ class _HomeScreenState extends State<HomeScreen> {
                               textAlign: TextAlign.center,
                             ),
                             const SizedBox(height: 20),
-                            
-                            // Subtitle
-                            Text(
-                              isEnglish
-                                  ? 'A random animal has been selected.\nCan you guess what it is?'
-                                  : 'Ett slumpmässigt djur har valts.\nKan du gissa vad det är?',
-                              style: GoogleFonts.ibmPlexMono(
-                                fontSize: 17,
-                                color: Colors.white.withOpacity(0.8),
-                                height: 1.6,
-                                fontWeight: FontWeight.w400,
-                              ),
-                              textAlign: TextAlign.center,
+                          ],
+
+                          // Subtitle
+                          Text(
+                            _hasPlayedToday
+                                ? (isEnglish
+                                    ? 'You\'ve already played today!\nCome back tomorrow for a new animal.'
+                                    : 'Du har redan spelat idag!\nKom tillbaka imorgon för ett nytt djur.')
+                                : (isEnglish
+                                    ? 'A random animal has been selected.\nCan you guess what it is?'
+                                    : 'Ett slumpmässigt djur har valts.\nKan du gissa vad det är?'),
+                            style: GoogleFonts.ibmPlexMono(
+                              fontSize: 17,
+                              color: Colors.white.withOpacity(0.8),
+                              height: 1.6,
+                              fontWeight: FontWeight.w400,
                             ),
-                            const SizedBox(height: 48),
-                            
-                            // Play button
+                            textAlign: TextAlign.center,
+                          ),
+                          const SizedBox(height: 48),
+
+                          // Today's animal display
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.all(20),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF1F2937),
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(
+                                color: const Color(0xFF374151),
+                                width: 1,
+                              ),
+                            ),
+                            child: Column(
+                              children: [
+                                Text(
+                                  isEnglish ? "Today's Animal" : "Dagens djur",
+                                  style: GoogleFonts.ibmPlexMono(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w600,
+                                    color: Colors.white70,
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  animal.name,
+                                  style: GoogleFonts.ibmPlexMono(
+                                    fontSize: 24,
+                                    fontWeight: FontWeight.w700,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                                if (animal.scientificName.isNotEmpty) ...[
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    animal.scientificName,
+                                    style: GoogleFonts.ibmPlexMono(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w400,
+                                      color: Colors.white60,
+                                      fontStyle: FontStyle.italic,
+                                    ),
+                                  ),
+                                ],
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 24),
+
+                          // Play button or status
+                          if (_isLoadingPlayStatus)
+                            Container(
+                              width: double.infinity,
+                              height: 64,
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF374151),
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              child: const Center(
+                                child: CircularProgressIndicator(
+                                  color: Colors.white,
+                                ),
+                              ),
+                            )
+                          else if (_hasPlayedToday)
+                            Container(
+                              width: double.infinity,
+                              height: 64,
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF374151),
+                                borderRadius: BorderRadius.circular(20),
+                                border: Border.all(
+                                  color: const Color(0xFF6B7280),
+                                  width: 1,
+                                ),
+                              ),
+                              child: Center(
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(
+                                      Icons.check_circle,
+                                      color: Colors.green[400],
+                                      size: 20,
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Column(
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          isEnglish ? "Already played today!" : "Redan spelat idag!",
+                                          style: GoogleFonts.ibmPlexMono(
+                                            fontSize: 14,
+                                            fontWeight: FontWeight.w600,
+                                            color: Colors.white70,
+                                          ),
+                                        ),
+                                        Text(
+                                          isEnglish ? "Come back tomorrow" : "Kom tillbaka imorgon",
+                                          style: GoogleFonts.ibmPlexMono(
+                                            fontSize: 11,
+                                            color: Colors.white60,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            )
+                          else
                             Container(
                               width: double.infinity,
                               height: 64,
@@ -217,7 +380,11 @@ class _HomeScreenState extends State<HomeScreen> {
                                 color: Colors.transparent,
                                 child: InkWell(
                                   borderRadius: BorderRadius.circular(20),
-                                  onTap: () {
+                                  onTap: () async {
+                                    // Mark as played and navigate
+                                    await DailyPlayService.markPlayedToday();
+                                    await DailyPlayService.setTodaysAnimal(animal);
+
                                     Navigator.push(
                                       context,
                                       MaterialPageRoute(
@@ -241,10 +408,9 @@ class _HomeScreenState extends State<HomeScreen> {
                                         Text(
                                           isEnglish ? 'Guess Today\'s Animal' : 'Gissa dagens djur',
                                           style: GoogleFonts.ibmPlexMono(
+                                            color: Colors.white,
                                             fontSize: 19,
                                             fontWeight: FontWeight.w600,
-                                            color: Colors.white,
-                                            letterSpacing: -0.2,
                                           ),
                                         ),
                                       ],
@@ -253,138 +419,30 @@ class _HomeScreenState extends State<HomeScreen> {
                                 ),
                               ),
                             ),
-                            const SizedBox(height: 24),
-                            
-                            // Secondary buttons
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: Container(
-                                    height: 52,
-                                    decoration: BoxDecoration(
-                                      color: Colors.white.withOpacity(0.05),
-                                      borderRadius: BorderRadius.circular(16),
-                                      border: Border.all(
-                                        color: Colors.white.withOpacity(0.15),
-                                        width: 1,
-                                      ),
-                                    ),
-                                    child: Material(
-                                      color: Colors.transparent,
-                                      child: InkWell(
-                                        borderRadius: BorderRadius.circular(16),
-                                        onTap: () {
-                                          Navigator.push(
-                                            context,
-                                            MaterialPageRoute(
-                                              builder: (context) => HistoryScreen(isEnglish: isEnglish),
-                                            ),
-                                          );
-                                        },
-                                        child: Center(
-                                          child: Row(
-                                            mainAxisAlignment: MainAxisAlignment.center,
-                                            children: [
-                                              Icon(
-                                                Icons.history_rounded,
-                                                color: Colors.white.withOpacity(0.9),
-                                                size: 18,
-                                              ),
-                                              const SizedBox(width: 10),
-                                              Text(
-                                                isEnglish ? 'History' : 'Historik',
-                                                style: GoogleFonts.ibmPlexMono(
-                                                  fontSize: 15,
-                                                  color: Colors.white.withOpacity(0.9),
-                                                  fontWeight: FontWeight.w500,
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(width: 16),
-                                Expanded(
-                                  child: Container(
-                                    height: 52,
-                                    decoration: BoxDecoration(
-                                      color: Colors.white.withOpacity(0.05),
-                                      borderRadius: BorderRadius.circular(16),
-                                      border: Border.all(
-                                        color: Colors.white.withOpacity(0.15),
-                                        width: 1,
-                                      ),
-                                    ),
-                                    child: Material(
-                                      color: Colors.transparent,
-                                      child: InkWell(
-                                        borderRadius: BorderRadius.circular(16),
-                                        onTap: () {
-                                          // <--- HÄR ÄR DEN UPPDATERADE LOGIKEN
-                                          Navigator.push(
-                                            context,
-                                            MaterialPageRoute(
-                                              builder: (context) => HowToPlayScreen(
-                                                isEnglish: isEnglish,
-                                              ),
-                                            ),
-                                          );
-                                        },
-                                        child: Center(
-                                          child: Row(
-                                            mainAxisAlignment: MainAxisAlignment.center,
-                                            children: [
-                                              Icon(
-                                                Icons.help_outline_rounded,
-                                                color: Colors.white.withOpacity(0.9),
-                                                size: 18,
-                                              ),
-                                              const SizedBox(width: 10),
-                                              Text(
-                                                isEnglish ? 'How to play' : 'Hur man spelar',
-                                                style: GoogleFonts.ibmPlexMono(
-                                                  fontSize: 15,
-                                                  color: Colors.white.withOpacity(0.9),
-                                                  fontWeight: FontWeight.w500,
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ],
+                          const SizedBox(height: 24),
+
+                          // Refresh button
+                          TextButton(
+                            onPressed: _refreshAnimal,
+                            child: Text(
+                              isEnglish ? 'Get New Animal' : 'Få nytt djur',
+                              style: GoogleFonts.ibmPlexMono(
+                                color: Colors.white70,
+                                fontSize: 14,
+                              ),
                             ),
-                          ],
-                        );
-                      } else {
-                        return const LoadingWidget(message: 'Loading...');
-                      }
-                    },
-                  ),
+                          ),
+                        ],
+                      );
+                    } else {
+                      return const Center(
+                        child: LoadingWidget(),
+                      );
+                    }
+                  },
                 ),
-                
-                // Refresh button
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 16),
-                  child: TextButton(
-                    onPressed: _refreshAnimal,
-                    child: Text(
-                      isEnglish ? 'Get New Animal' : 'Få nytt djur',
-                      style: GoogleFonts.ibmPlexMono(
-                        color: Colors.white70,
-                        fontSize: 14,
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ),

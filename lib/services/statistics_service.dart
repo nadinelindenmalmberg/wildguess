@@ -14,6 +14,9 @@ String _dayKeyDaily(DateTime utcNow) =>
 String _dayKeyTesting(DateTime utcNow, String animal) =>
     '${_dayKeyDaily(utcNow)}:$animal';
 
+String _dayKeyWithAnimal(DateTime utcNow, String animal) =>
+    '${_dayKeyDaily(utcNow)}:$animal';
+
 Future<void> ensureAnonSession() async {
   if (supa.auth.currentSession == null) {
     await supa.auth.signInAnonymously();
@@ -50,12 +53,13 @@ Future<void> submitScore({
   required bool solved,
   required int timeMs,
   String? animalForTesting,
+  String? animalName,
 }) async {
   await ensureAnonSession();
   final nowUtc = DateTime.now().toUtc();
   final key = testingMode
       ? _dayKeyTesting(nowUtc, animalForTesting ?? 'test')
-      : _dayKeyDaily(nowUtc);
+      : _dayKeyWithAnimal(nowUtc, animalName ?? 'unknown');
 
   // Calculate score using the new formula
   final int score = calculateScore(
@@ -76,11 +80,12 @@ Future<void> submitScore({
 Future<List<Map<String, dynamic>>> getTopToday({
   int limit = 100,
   String? animalForTesting,
+  String? animalName,
 }) async {
   final nowUtc = DateTime.now().toUtc();
   final key = testingMode
       ? _dayKeyTesting(nowUtc, animalForTesting ?? 'test')
-      : _dayKeyDaily(nowUtc);
+      : _dayKeyWithAnimal(nowUtc, animalName ?? 'unknown');
 
   final res = await supa.rpc('get_leaderboard', params: {
     'p_day_key': key,
@@ -129,6 +134,9 @@ class StatisticsService {
         game['is_correct'] == false).length;
       
       final totalGames = recentGames.length;
+      
+      // Calculate percentage based on success/failure (same logic as global stats)
+      // This will be overridden in the UI based on isCorrect, but we need it for fallback
       final currentHintCount = hintDistribution[hintIndex] ?? 0;
       final percentage = totalGames > 0 ? (currentHintCount / totalGames * 100).round() : 0;
       

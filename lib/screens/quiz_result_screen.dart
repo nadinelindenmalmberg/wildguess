@@ -49,6 +49,7 @@ class _QuizResultScreenState extends State<QuizResultScreen> {
         final leaderboard = await getTopToday(
           limit: 100,
           animalForTesting: testingMode ? widget.animal.name : null,
+          animalName: widget.animal.name,
         );
         
         if (leaderboard.isNotEmpty) {
@@ -57,6 +58,7 @@ class _QuizResultScreenState extends State<QuizResultScreen> {
           final hintDistribution = <int, int>{};
           
           print('[QuizResultScreen] Loading global stats: totalPlayers=$totalPlayers, isCorrect=${widget.isCorrect}, hintIndex=${widget.hintIndex}');
+          print('[QuizResultScreen] Raw leaderboard data: $leaderboard');
           
           // Count successful attempts for each hint level (only solved = true)
           for (int i = 1; i <= 5; i++) {
@@ -70,7 +72,7 @@ class _QuizResultScreenState extends State<QuizResultScreen> {
             entry['solved'] == false).length;
           print('[QuizResultScreen] Failed attempts: $failedCount');
           
-          // Calculate percentage based on success/failure
+          // For daily animal system: calculate percentage based on success/failure
           int currentCount;
           if (widget.isCorrect) {
             // User succeeded, count successful attempts at their hint level
@@ -145,6 +147,7 @@ class _QuizResultScreenState extends State<QuizResultScreen> {
         solved: widget.isCorrect,
         timeMs: widget.totalTimeMs,
         animalForTesting: testingMode ? widget.animal.name : null,
+        animalName: widget.animal.name, // Always pass animal name for daily tracking
       );
       print('[QuizResultScreen] Score submitted to Supabase successfully');
     } catch (e) {
@@ -157,12 +160,12 @@ class _QuizResultScreenState extends State<QuizResultScreen> {
     if (_dailyStats.isEmpty) {
       if (widget.isCorrect) {
         return widget.isEnglish 
-            ? "You and 52% of other players guessed on the ${widget.hintIndex}rd try!"
-            : "Du och 52% av andra spelare gissade på ${widget.hintIndex}:e försöket!";
+            ? "You and 52% of other players solved today's animal on the ${widget.hintIndex}rd try!"
+            : "Du och 52% av andra spelare löste dagens djur på ${widget.hintIndex}:e försöket!";
       } else {
         return widget.isEnglish 
-            ? "You and 10% of other players didn't solve it!"
-            : "Du och 10% av andra spelare löste det inte!";
+            ? "You and 10% of other players didn't solve today's animal!"
+            : "Du och 10% av andra spelare löste inte dagens djur!";
       }
     }
     
@@ -171,39 +174,39 @@ class _QuizResultScreenState extends State<QuizResultScreen> {
     final isGlobal = _dailyStats['isGlobal'] ?? false;
     final totalGames = _dailyStats['totalGames'] ?? 0;
     
-    String dataSource = isGlobal ? "global players" : "other players";
-    String dataSourceSv = isGlobal ? "globala spelare" : "andra spelare";
+    String dataSource = isGlobal ? "players today" : "other players";
+    String dataSourceSv = isGlobal ? "spelare idag" : "andra spelare";
     
     if (isDefault) {
       if (widget.isCorrect) {
         return widget.isEnglish 
-            ? "You and $percentage% of $dataSource guessed on the ${widget.hintIndex}rd try!"
-            : "Du och $percentage% av $dataSourceSv gissade på ${widget.hintIndex}:e försöket!";
+            ? "You and $percentage% of $dataSource solved today's animal on the ${widget.hintIndex}rd try!"
+            : "Du och $percentage% av $dataSourceSv löste dagens djur på ${widget.hintIndex}:e försöket!";
       } else {
         return widget.isEnglish 
-            ? "You and $percentage% of $dataSource didn't solve it!"
-            : "Du och $percentage% av $dataSourceSv löste det inte!";
+            ? "You and $percentage% of $dataSource didn't solve today's animal!"
+            : "Du och $percentage% av $dataSourceSv löste inte dagens djur!";
       }
     } else {
       if (totalGames < 5) {
         if (widget.isCorrect) {
           return widget.isEnglish 
-              ? "You and $percentage% of $dataSource guessed on the ${widget.hintIndex}rd try! (Based on $totalGames games)"
-              : "Du och $percentage% av $dataSourceSv gissade på ${widget.hintIndex}:e försöket! (Baserat på $totalGames spel)";
+              ? "You and $percentage% of $dataSource solved today's animal on the ${widget.hintIndex}rd try! ($totalGames players)"
+              : "Du och $percentage% av $dataSourceSv löste dagens djur på ${widget.hintIndex}:e försöket! ($totalGames spelare)";
         } else {
           return widget.isEnglish 
-              ? "You and $percentage% of $dataSource didn't solve it! (Based on $totalGames games)"
-              : "Du och $percentage% av $dataSourceSv löste det inte! (Baserat på $totalGames spel)";
+              ? "You and $percentage% of $dataSource didn't solve today's animal! ($totalGames players)"
+              : "Du och $percentage% av $dataSourceSv löste inte dagens djur! ($totalGames spelare)";
         }
       } else {
         if (widget.isCorrect) {
           return widget.isEnglish 
-              ? "You and $percentage% of $dataSource guessed on the ${widget.hintIndex}rd try! (Based on $totalGames games)"
-              : "Du och $percentage% av $dataSourceSv gissade på ${widget.hintIndex}:e försöket! (Baserat på $totalGames spel)";
+              ? "You and $percentage% of $dataSource solved today's animal on the ${widget.hintIndex}rd try! ($totalGames players)"
+              : "Du och $percentage% av $dataSourceSv löste dagens djur på ${widget.hintIndex}:e försöket! ($totalGames spelare)";
         } else {
           return widget.isEnglish 
-              ? "You and $percentage% of $dataSource didn't solve it! (Based on $totalGames games)"
-              : "Du och $percentage% av $dataSourceSv löste det inte! (Baserat på $totalGames spel)";
+              ? "You and $percentage% of $dataSource didn't solve today's animal! ($totalGames players)"
+              : "Du och $percentage% av $dataSourceSv löste inte dagens djur! ($totalGames spelare)";
         }
       }
     }
@@ -700,7 +703,7 @@ void _showCluesDialog(BuildContext context) {
                   child: Column(
                     children: [
                       Text(
-                        widget.isEnglish ? 'daily statistics' : 'daglig statistik',
+                        widget.isEnglish ? "today's animal statistics" : 'dagens djurs statistik',
                     style: GoogleFonts.ibmPlexMono(
                       color: Colors.white,
                       fontSize: 20,
