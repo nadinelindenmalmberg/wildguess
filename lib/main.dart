@@ -2,10 +2,20 @@ import 'package:flutter/material.dart';
 import 'core/theme.dart';
 import 'core/constants.dart';
 import 'screens/home_screen.dart';
+import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'secrets.dart';
 
-void main() {
+
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Supabase.initialize(
+    url: supabaseUrl,
+    anonKey: supabaseAnonKey,
+  );
   runApp(const WildGuessApp());
 }
+
 
 class WildGuessApp extends StatelessWidget {
   const WildGuessApp({super.key});

@@ -1,0 +1,2 @@
+const supabaseUrl = 'https://bdkigipnhnnyudesfmor.supabase.co';
+const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJka2lnaXBuaG5ueXVkZXNmbW9yIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjE1NDY4NzgsImV4cCI6MjA3NzEyMjg3OH0._5AGkiqRXY2ZE7okInjTmMQzeM9w3bByErSdpfjFY-s';

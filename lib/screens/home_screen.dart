@@ -8,6 +8,7 @@ import '../widgets/error_widget.dart';
 import 'quiz_screen.dart';
 import 'tutorial_screen.dart';
 import 'history_screen.dart';
+import 'test_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -54,7 +55,7 @@ class _HomeScreenState extends State<HomeScreen> {
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Column(
               children: [
-                // Header with language toggle
+                // Header with language toggle and test button
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
@@ -67,23 +68,52 @@ class _HomeScreenState extends State<HomeScreen> {
                         letterSpacing: -0.5,
                       ),
                     ),
-                    Container(
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.08),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: IconButton(
-                        icon: Icon(
-                          isEnglish ? Icons.language : Icons.translate,
-                          size: 20,
+                    Row(
+                      children: [
+                        // Test Screen Button (Debug)
+                        Container(
+                          decoration: BoxDecoration(
+                            color: Colors.red.withOpacity(0.08),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: IconButton(
+                            icon: const Icon(Icons.bug_report, size: 20),
+                            onPressed: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => const TestScreen(),
+                                ),
+                              );
+                            },
+                            color: Colors.red,
+                            style: IconButton.styleFrom(
+                              padding: const EdgeInsets.all(8),
+                              minimumSize: const Size(40, 40),
+                            ),
+                          ),
                         ),
-                        onPressed: _toggleLanguage,
-                        color: Colors.white,
-                        style: IconButton.styleFrom(
-                          padding: const EdgeInsets.all(8),
-                          minimumSize: const Size(40, 40),
+                        const SizedBox(width: 8),
+                        // Language Toggle
+                        Container(
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.08),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: IconButton(
+                            icon: Icon(
+                              isEnglish ? Icons.language : Icons.translate,
+                              size: 20,
+                            ),
+                            onPressed: _toggleLanguage,
+                            color: Colors.white,
+                            style: IconButton.styleFrom(
+                              padding: const EdgeInsets.all(8),
+                              minimumSize: const Size(40, 40),
+                            ),
+                          ),
                         ),
-                      ),
+                      ],
                     ),
                   ],
                 ),

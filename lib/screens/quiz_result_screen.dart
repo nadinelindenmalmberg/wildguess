@@ -42,6 +42,48 @@ class _QuizResultScreenState extends State<QuizResultScreen> {
 
   Future<void> _loadDailyStatistics() async {
     try {
+      // Try to get global statistics from Supabase first
+      try {
+        final leaderboard = await getTopToday(
+          limit: 100,
+          animalForTesting: testingMode ? widget.animal.name : null,
+        );
+        
+        if (leaderboard.isNotEmpty) {
+          // Calculate global statistics from leaderboard data
+          final totalPlayers = leaderboard.length;
+          final hintDistribution = <int, int>{};
+          
+          // Count attempts for each hint level
+          for (int i = 1; i <= 5; i++) {
+            hintDistribution[i] = leaderboard.where((entry) => 
+              entry['attempts'] == i).length;
+          }
+          
+          final currentHintCount = hintDistribution[widget.hintIndex] ?? 0;
+          final percentage = totalPlayers > 0 ? (currentHintCount / totalPlayers * 100).round() : 0;
+          
+          if (mounted) {
+            setState(() {
+              _dailyStats = {
+                'percentage': percentage,
+                'totalGames': totalPlayers,
+                'hintDistribution': hintDistribution,
+                'isLocal': false,
+                'isDefault': false,
+                'isGlobal': true,
+              };
+              _isLoadingStats = false;
+            });
+          }
+          return;
+        }
+      } catch (e) {
+        print('Error loading global statistics: $e');
+        // Fall back to local statistics
+      }
+      
+      // Fallback to local statistics if Supabase fails
       final stats = await StatisticsService.getDailyStatistics(widget.hintIndex);
       if (mounted) {
         setState(() {
@@ -60,6 +102,7 @@ class _QuizResultScreenState extends State<QuizResultScreen> {
   }
 
   Future<void> _saveGameHistory() async {
+    // Save to local history
     await HistoryService.saveGameHistory(
       animal: widget.animal,
       isCorrect: widget.isCorrect,
@@ -67,6 +110,21 @@ class _QuizResultScreenState extends State<QuizResultScreen> {
       totalQuestions: widget.totalHints,
       completedAt: DateTime.now(),
     );
+
+    // Submit to Supabase
+    try {
+      await submitScore(
+        score: widget.isCorrect ? (widget.totalHints - widget.hintIndex + 1) : 0,
+        attempts: widget.hintIndex,
+        solved: widget.isCorrect,
+        timeMs: null, // We don't track time currently
+        animalForTesting: testingMode ? widget.animal.name : null,
+      );
+      print('Score submitted to Supabase successfully');
+    } catch (e) {
+      print('Error submitting score to Supabase: $e');
+      // Don't show error to user, just log it
+    }
   }
 
   String _getStatisticsText() {
@@ -78,21 +136,25 @@ class _QuizResultScreenState extends State<QuizResultScreen> {
     
     final percentage = _dailyStats['percentage'] ?? 52;
     final isDefault = _dailyStats['isDefault'] ?? false;
+    final isGlobal = _dailyStats['isGlobal'] ?? false;
+    final totalGames = _dailyStats['totalGames'] ?? 0;
+    
+    String dataSource = isGlobal ? "global players" : "other players";
+    String dataSourceSv = isGlobal ? "globala spelare" : "andra spelare";
     
     if (isDefault) {
       return widget.isEnglish 
-          ? "You and $percentage% of other players guessed on the ${widget.hintIndex}rd try!"
-          : "Du och $percentage% av andra spelare gissade på ${widget.hintIndex}:e försöket!";
+          ? "You and $percentage% of $dataSource guessed on the ${widget.hintIndex}rd try!"
+          : "Du och $percentage% av $dataSourceSv gissade på ${widget.hintIndex}:e försöket!";
     } else {
-      final totalGames = _dailyStats['totalGames'] ?? 0;
       if (totalGames < 5) {
         return widget.isEnglish 
-            ? "You and $percentage% of other players guessed on the ${widget.hintIndex}rd try! (Based on $totalGames games)"
-            : "Du och $percentage% av andra spelare gissade på ${widget.hintIndex}:e försöket! (Baserat på $totalGames spel)";
+            ? "You and $percentage% of $dataSource guessed on the ${widget.hintIndex}rd try! (Based on $totalGames games)"
+            : "Du och $percentage% av $dataSourceSv gissade på ${widget.hintIndex}:e försöket! (Baserat på $totalGames spel)";
       } else {
         return widget.isEnglish 
-            ? "You and $percentage% of other players guessed on the ${widget.hintIndex}rd try!"
-            : "Du och $percentage% av andra spelare gissade på ${widget.hintIndex}:e försöket!";
+            ? "You and $percentage% of $dataSource guessed on the ${widget.hintIndex}rd try! (Based on $totalGames games)"
+            : "Du och $percentage% av $dataSourceSv gissade på ${widget.hintIndex}:e försöket! (Baserat på $totalGames spel)";
       }
     }
   }
@@ -556,14 +618,37 @@ class _QuizResultScreenState extends State<QuizResultScreen> {
                 
                 // Statistics section
                 Center(
-                  child: Text(
-                    widget.isEnglish ? 'daily statistics' : 'daglig statistik',
-                    style: GoogleFonts.ibmPlexMono(
-                      color: Colors.white,
-                      fontSize: 20,
-                      fontWeight: FontWeight.w600,
-                      letterSpacing: 1.0,
-                    ),
+                  child: Column(
+                    children: [
+                      Text(
+                        widget.isEnglish ? 'daily statistics' : 'daglig statistik',
+                        style: GoogleFonts.ibmPlexMono(
+                          color: Colors.white,
+                          fontSize: 20,
+                          fontWeight: FontWeight.w600,
+                          letterSpacing: 1.0,
+                        ),
+                      ),
+                      if (_dailyStats['isGlobal'] == true) ...[
+                        const SizedBox(height: 4),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: Colors.green.withOpacity(0.2),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: Colors.green.withOpacity(0.5)),
+                          ),
+                          child: Text(
+                            widget.isEnglish ? '🌍 Global Data' : '🌍 Global Data',
+                            style: GoogleFonts.ibmPlexMono(
+                              color: Colors.green,
+                              fontSize: 10,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
                   ),
                 ),
                 const SizedBox(height: 8),
