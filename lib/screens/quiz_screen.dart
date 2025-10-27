@@ -924,6 +924,10 @@ class _QuizScreenState extends State<QuizScreen> {
         _pressedIDontKnow = false;
         _searchFocusNode.unfocus(); _filtered = const [];
       });
+      // If this is the last question and answer is wrong, go to next question to trigger failure logic
+      if (_currentLevel >= widget.totalQuestions) {
+        _goToNextQuestion(context);
+      }
     }
     await _saveLevelHistory();
   }
@@ -940,10 +944,10 @@ class _QuizScreenState extends State<QuizScreen> {
             animal: widget.animal,
             isEnglish: widget.isEnglish,
             isCorrect: _isCorrect,
-          hintIndex: _isCorrect ? _currentLevel : widget.totalQuestions, // Skicka med nivån man klarade på
-          totalHints: widget.totalQuestions,
-          aiClues: _aiClues,
-          totalTimeMs: totalTimeMs,
+            hintIndex: _isCorrect ? _currentLevel : _currentLevel, // Use actual current level for both success and failure
+            totalHints: widget.totalQuestions,
+            aiClues: _aiClues,
+            totalTimeMs: totalTimeMs,
           ),
         ),
       );
