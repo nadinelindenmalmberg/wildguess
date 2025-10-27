@@ -1,6 +1,106 @@
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'history_service.dart';
+
+final supa = Supabase.instance.client;
+
+/// Toggle this during development
+bool testingMode = false; // uses YYYY-MM-DD only
+
+String _dayKeyDaily(DateTime utcNow) =>
+    utcNow.toIso8601String().substring(0, 10); // YYYY-MM-DD
+
+String _dayKeyTesting(DateTime utcNow, String animal) =>
+    '${_dayKeyDaily(utcNow)}:$animal';
+
+Future<void> ensureAnonSession() async {
+  if (supa.auth.currentSession == null) {
+    await supa.auth.signInAnonymously();
+  }
+  await supa.rpc('ensure_player');
+}
+
+/// Calculate score based on attempts and time using the new formula
+/// Formula: base = 100, attemptPenalty = 15 * (attempts - 1), timePenalty = min(time_ms / 1000 / 2, 40)
+/// score = clamp(base - attemptPenalty - timePenalty, 0, 100)
+int calculateScore({
+  required int attempts,
+  required int timeMs,
+  required bool solved,
+}) {
+  if (!solved) return 0;
+  
+  const int base = 100;
+  final int attemptPenalty = 15 * (attempts - 1);
+  final double timePenalty = (timeMs / 1000.0 / 2.0).clamp(0, 40);
+  
+  final int score = (base - attemptPenalty - timePenalty).round().clamp(0, 100);
+  return score;
+}
+
+Future<void> setNickname(String nickname) async {
+  await ensureAnonSession();
+  final userId = supa.auth.currentUser!.id;
+  await supa.from('players').upsert({'user_id': userId, 'nickname': nickname});
+}
+
+Future<void> submitScore({
+  required int attempts,
+  required bool solved,
+  required int timeMs,
+  String? animalForTesting,
+}) async {
+  await ensureAnonSession();
+  final nowUtc = DateTime.now().toUtc();
+  final key = testingMode
+      ? _dayKeyTesting(nowUtc, animalForTesting ?? 'test')
+      : _dayKeyDaily(nowUtc);
+
+  // Calculate score using the new formula
+  final int score = calculateScore(
+    attempts: attempts,
+    timeMs: timeMs,
+    solved: solved,
+  );
+
+  await supa.rpc('submit_score', params: {
+    'p_day_key': key,
+    'p_score': score,
+    'p_attempts': attempts,
+    'p_solved': solved,
+    'p_time_ms': timeMs,
+  });
+}
+
+Future<List<Map<String, dynamic>>> getTopToday({
+  int limit = 100,
+  String? animalForTesting,
+}) async {
+  final nowUtc = DateTime.now().toUtc();
+  final key = testingMode
+      ? _dayKeyTesting(nowUtc, animalForTesting ?? 'test')
+      : _dayKeyDaily(nowUtc);
+
+  final res = await supa.rpc('get_leaderboard', params: {
+    'p_day_key': key,
+    'p_limit': limit,
+  });
+  return (res as List).cast<Map<String, dynamic>>();
+}
+
+Future<Map<String, dynamic>> getMyRank({String? animalForTesting}) async {
+  final nowUtc = DateTime.now().toUtc();
+  final key = testingMode
+      ? _dayKeyTesting(nowUtc, animalForTesting ?? 'test')
+      : _dayKeyDaily(nowUtc);
+
+  final res = await supa.rpc('get_my_rank', params: {'p_day_key': key});
+  if (res is List && res.isNotEmpty) {
+    return (res.first as Map<String, dynamic>);
+  }
+  return {'rank': null, 'score': null, 'total_players': 0};
+}
 
 class StatisticsService {
   static const String _dailyStatsKey = 'daily_statistics';

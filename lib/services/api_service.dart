@@ -25,7 +25,63 @@ class ApiService {
 
   /// Get a random Swedish animal using the live API
   Future<AnimalData> getRandomAnimal() async {
-    return getRandomAnimalFromAPI();
+    try {
+      return await getRandomAnimalFromAPI();
+    } catch (e) {
+      print('[ApiService] API failed, using test animals: $e');
+      return _getTestAnimal();
+    }
+  }
+
+  /// Get a test animal when API is unavailable
+  AnimalData _getTestAnimal() {
+    print('[ApiService] Using test animal fallback');
+    final testAnimals = [
+      AnimalData(
+        name: 'varg',
+        scientificName: 'Canis lupus',
+        description: 'Vargen är ett rovdjur som lever i flockar och jagar tillsammans.',
+        hints: [
+          'Detta djur lever i flockar och jagar tillsammans',
+          'Det har vassa tänder och är ett rovdjur',
+          'Det kan yla och kommunicera över långa avstånd',
+          'Det är känd för sin intelligens och sociala struktur',
+          'Det är Sveriges största rovdjur'
+        ],
+        imageUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/5/5a/Canis_lupus_laying_in_grass.jpg/800px-Canis_lupus_laying_in_grass.jpg',
+      ),
+      AnimalData(
+        name: 'älg',
+        scientificName: 'Alces alces',
+        description: 'Älgen är Sveriges största hjortdjur och lever i skogar.',
+        hints: [
+          'Detta djur är Sveriges största hjortdjur',
+          'Det har stora horn som den kastar varje år',
+          'Det lever i skogar och äter växter',
+          'Det kan vara farligt att möta på vägen',
+          'Det är ett mycket stort djur med långa ben'
+        ],
+        imageUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/8/8a/Moose_superior.jpg/800px-Moose_superior.jpg',
+      ),
+      AnimalData(
+        name: 'räv',
+        scientificName: 'Vulpes vulpes',
+        description: 'Räven är en smidig rovdjur som lever i skogar och på öppna fält.',
+        hints: [
+          'Detta djur har en buskig svans',
+          'Det är känd för sin listighet',
+          'Det har rödbrun päls och spetsiga öron',
+          'Det jagar smådjur och äter även bär',
+          'Det är ett smidigt rovdjur'
+        ],
+        imageUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/1/16/Fox_-_British_Wildlife_Centre_%2817429406401%29.jpg/800px-Fox_-_British_Wildlife_Centre_%2817429406401%29.jpg',
+      ),
+    ];
+    
+    final random = math.Random();
+    final selectedAnimal = testAnimals[random.nextInt(testAnimals.length)];
+    print('[ApiService] Selected test animal: ${selectedAnimal.name}');
+    return selectedAnimal;
   }
 
 
