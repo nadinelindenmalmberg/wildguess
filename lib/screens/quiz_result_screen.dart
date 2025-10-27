@@ -56,26 +56,33 @@ class _QuizResultScreenState extends State<QuizResultScreen> {
           final totalPlayers = leaderboard.length;
           final hintDistribution = <int, int>{};
           
+          print('[QuizResultScreen] Loading global stats: totalPlayers=$totalPlayers, isCorrect=${widget.isCorrect}, hintIndex=${widget.hintIndex}');
+          
           // Count successful attempts for each hint level (only solved = true)
           for (int i = 1; i <= 5; i++) {
             hintDistribution[i] = leaderboard.where((entry) => 
               entry['attempts'] == i && entry['solved'] == true).length;
+            print('[QuizResultScreen] Hint $i successful: ${hintDistribution[i]}');
           }
           
           // Count failed attempts (solved = false)
           final failedCount = leaderboard.where((entry) => 
             entry['solved'] == false).length;
+          print('[QuizResultScreen] Failed attempts: $failedCount');
           
           // Calculate percentage based on success/failure
           int currentCount;
           if (widget.isCorrect) {
             // User succeeded, count successful attempts at their hint level
             currentCount = hintDistribution[widget.hintIndex] ?? 0;
+            print('[QuizResultScreen] User succeeded, counting hint ${widget.hintIndex}: $currentCount');
           } else {
             // User failed, count failed attempts
             currentCount = failedCount;
+            print('[QuizResultScreen] User failed, counting failed attempts: $currentCount');
           }
           final percentage = totalPlayers > 0 ? (currentCount / totalPlayers * 100).round() : 0;
+          print('[QuizResultScreen] Final percentage: $percentage%');
           
           if (mounted) {
             setState(() {
@@ -132,15 +139,16 @@ class _QuizResultScreenState extends State<QuizResultScreen> {
 
     // Submit to Supabase with new scoring system
     try {
+      print('[QuizResultScreen] Submitting score: attempts=${widget.hintIndex}, solved=${widget.isCorrect}, timeMs=${widget.totalTimeMs}');
       await submitScore(
         attempts: widget.hintIndex,
         solved: widget.isCorrect,
         timeMs: widget.totalTimeMs,
         animalForTesting: testingMode ? widget.animal.name : null,
       );
-      print('Score submitted to Supabase successfully');
+      print('[QuizResultScreen] Score submitted to Supabase successfully');
     } catch (e) {
-      print('Error submitting score to Supabase: $e');
+      print('[QuizResultScreen] Error submitting score to Supabase: $e');
       // Don't show error to user, just log it
     }
   }
@@ -220,23 +228,38 @@ class _QuizResultScreenState extends State<QuizResultScreen> {
     final failedCount = _dailyStats['failedCount'] ?? 0;
     final totalGames = _dailyStats['totalGames'] ?? 1;
     
+    print('[QuizResultScreen] Building bars: totalGames=$totalGames, failedCount=$failedCount');
+    print('[QuizResultScreen] Hint distribution: $hintDistribution');
+    print('[QuizResultScreen] User: isCorrect=${widget.isCorrect}, hintIndex=${widget.hintIndex}');
+    
     return Column(
       children: [
         // Rows 1-5 for successful attempts
-        for (int i = 1; i <= 5; i++)
-          _StatsRow(
-            attempt: i.toString(), 
-            percent: totalGames > 0 ? ((hintDistribution[i] ?? 0) / totalGames * 100).round() : 0, 
-            highlight: i == widget.hintIndex && widget.isCorrect,
-            isEnglish: widget.isEnglish,
-          ),
+        for (int i = 1; i <= 5; i++) ...[
+          () {
+            final percent = totalGames > 0 ? ((hintDistribution[i] ?? 0) / totalGames * 100).round() : 0;
+            final highlight = i == widget.hintIndex && widget.isCorrect;
+            print('[QuizResultScreen] Row $i: percent=$percent%, highlight=$highlight');
+            return _StatsRow(
+              attempt: i.toString(), 
+              percent: percent, 
+              highlight: highlight,
+              isEnglish: widget.isEnglish,
+            );
+          }(),
+        ],
         // Row X for failed attempts
-        _StatsRow(
-          attempt: 'X', 
-          percent: totalGames > 0 ? (failedCount / totalGames * 100).round() : 0, 
-          highlight: !widget.isCorrect && widget.hintIndex == 5,
-          isEnglish: widget.isEnglish,
-        ),
+        () {
+          final percent = totalGames > 0 ? (failedCount / totalGames * 100).round() : 0;
+          final highlight = !widget.isCorrect && widget.hintIndex == 5;
+          print('[QuizResultScreen] Row X: percent=$percent%, highlight=$highlight');
+          return _StatsRow(
+            attempt: 'X', 
+            percent: percent, 
+            highlight: highlight,
+            isEnglish: widget.isEnglish,
+          );
+        }(),
       ],
     );
   }
