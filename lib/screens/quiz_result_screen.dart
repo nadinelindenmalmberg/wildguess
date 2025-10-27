@@ -56,18 +56,26 @@ class _QuizResultScreenState extends State<QuizResultScreen> {
           final totalPlayers = leaderboard.length;
           final hintDistribution = <int, int>{};
           
-          // Count attempts for each hint level
+          // Count successful attempts for each hint level (only solved = true)
           for (int i = 1; i <= 5; i++) {
             hintDistribution[i] = leaderboard.where((entry) => 
-              entry['attempts'] == i).length;
+              entry['attempts'] == i && entry['solved'] == true).length;
           }
           
           // Count failed attempts (solved = false)
           final failedCount = leaderboard.where((entry) => 
             entry['solved'] == false).length;
           
-          final currentHintCount = hintDistribution[widget.hintIndex] ?? 0;
-          final percentage = totalPlayers > 0 ? (currentHintCount / totalPlayers * 100).round() : 0;
+          // Calculate percentage based on success/failure
+          int currentCount;
+          if (widget.isCorrect) {
+            // User succeeded, count successful attempts at their hint level
+            currentCount = hintDistribution[widget.hintIndex] ?? 0;
+          } else {
+            // User failed, count failed attempts
+            currentCount = failedCount;
+          }
+          final percentage = totalPlayers > 0 ? (currentCount / totalPlayers * 100).round() : 0;
           
           if (mounted) {
             setState(() {
@@ -139,9 +147,15 @@ class _QuizResultScreenState extends State<QuizResultScreen> {
 
   String _getStatisticsText() {
     if (_dailyStats.isEmpty) {
-      return widget.isEnglish 
-          ? "You and 52% of other players guessed on the ${widget.hintIndex}rd try!"
-          : "Du och 52% av andra spelare gissade på ${widget.hintIndex}:e försöket!";
+      if (widget.isCorrect) {
+        return widget.isEnglish 
+            ? "You and 52% of other players guessed on the ${widget.hintIndex}rd try!"
+            : "Du och 52% av andra spelare gissade på ${widget.hintIndex}:e försöket!";
+      } else {
+        return widget.isEnglish 
+            ? "You and 10% of other players didn't solve it!"
+            : "Du och 10% av andra spelare löste det inte!";
+      }
     }
     
     final percentage = _dailyStats['percentage'] ?? 52;
@@ -153,18 +167,36 @@ class _QuizResultScreenState extends State<QuizResultScreen> {
     String dataSourceSv = isGlobal ? "globala spelare" : "andra spelare";
     
     if (isDefault) {
-      return widget.isEnglish 
-          ? "You and $percentage% of $dataSource guessed on the ${widget.hintIndex}rd try!"
-          : "Du och $percentage% av $dataSourceSv gissade på ${widget.hintIndex}:e försöket!";
-    } else {
-      if (totalGames < 5) {
+      if (widget.isCorrect) {
         return widget.isEnglish 
-            ? "You and $percentage% of $dataSource guessed on the ${widget.hintIndex}rd try! (Based on $totalGames games)"
-            : "Du och $percentage% av $dataSourceSv gissade på ${widget.hintIndex}:e försöket! (Baserat på $totalGames spel)";
+            ? "You and $percentage% of $dataSource guessed on the ${widget.hintIndex}rd try!"
+            : "Du och $percentage% av $dataSourceSv gissade på ${widget.hintIndex}:e försöket!";
       } else {
         return widget.isEnglish 
-            ? "You and $percentage% of $dataSource guessed on the ${widget.hintIndex}rd try! (Based on $totalGames games)"
-            : "Du och $percentage% av $dataSourceSv gissade på ${widget.hintIndex}:e försöket! (Baserat på $totalGames spel)";
+            ? "You and $percentage% of $dataSource didn't solve it!"
+            : "Du och $percentage% av $dataSourceSv löste det inte!";
+      }
+    } else {
+      if (totalGames < 5) {
+        if (widget.isCorrect) {
+          return widget.isEnglish 
+              ? "You and $percentage% of $dataSource guessed on the ${widget.hintIndex}rd try! (Based on $totalGames games)"
+              : "Du och $percentage% av $dataSourceSv gissade på ${widget.hintIndex}:e försöket! (Baserat på $totalGames spel)";
+        } else {
+          return widget.isEnglish 
+              ? "You and $percentage% of $dataSource didn't solve it! (Based on $totalGames games)"
+              : "Du och $percentage% av $dataSourceSv löste det inte! (Baserat på $totalGames spel)";
+        }
+      } else {
+        if (widget.isCorrect) {
+          return widget.isEnglish 
+              ? "You and $percentage% of $dataSource guessed on the ${widget.hintIndex}rd try! (Based on $totalGames games)"
+              : "Du och $percentage% av $dataSourceSv gissade på ${widget.hintIndex}:e försöket! (Baserat på $totalGames spel)";
+        } else {
+          return widget.isEnglish 
+              ? "You and $percentage% of $dataSource didn't solve it! (Based on $totalGames games)"
+              : "Du och $percentage% av $dataSourceSv löste det inte! (Baserat på $totalGames spel)";
+        }
       }
     }
   }
