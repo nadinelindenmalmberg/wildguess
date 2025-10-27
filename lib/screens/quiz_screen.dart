@@ -340,7 +340,7 @@ class _QuizScreenState extends State<QuizScreen> {
                     Container(
                       decoration: BoxDecoration(color: _newColor.withOpacity(0.08), borderRadius: BorderRadius.circular(12)), // Ändrad
                       child: IconButton(
-                        icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
+                        icon: const Icon(Icons.home_rounded, size: 20),
                         color: _newColor, // Ändrad
                         onPressed: () => Navigator.of(context).pushAndRemoveUntil(MaterialPageRoute(builder: (context) => const HomeScreen()), (Route<dynamic> route) => false),
                         style: IconButton.styleFrom(padding: const EdgeInsets.all(8), minimumSize: const Size(40, 40)),

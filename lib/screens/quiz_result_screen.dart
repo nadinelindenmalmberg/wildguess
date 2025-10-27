@@ -587,53 +587,6 @@ class _QuizResultScreenState extends State<QuizResultScreen> {
                   : _buildStatisticsBars(),
                 const SizedBox(height: 24),
                 
-                // Action buttons
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: Material(
-                    color: Colors.transparent,
-                    child: InkWell(
-                      borderRadius: BorderRadius.circular(16),
-                      onTap: () {
-                        Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) => QuizScreen(
-                              animal: widget.animal,
-                              isEnglish: widget.isEnglish,
-                              questionIndex: 1,
-                              totalQuestions: widget.totalHints,
-                            ),
-                          ),
-                        );
-                      },
-                      child: Container(
-                        height: 56,
-                        padding: const EdgeInsets.symmetric(horizontal: 24),
-                        decoration: BoxDecoration(
-                          color: Colors.green,
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        alignment: Alignment.center,
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              widget.isEnglish ? 'Play again' : 'Spela igen',
-                              style: GoogleFonts.ibmPlexMono(
-                                color: Colors.white,
-                                fontSize: 18,
-                                fontWeight: FontWeight.w400,
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            const Icon(Icons.refresh, color: Colors.white),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 16),
                 // View Clues button
                 Align(
                   alignment: Alignment.centerLeft,
