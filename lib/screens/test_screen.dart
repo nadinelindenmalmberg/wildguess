@@ -135,6 +135,12 @@ class _TestScreenState extends State<TestScreen> {
                   () => _submitTestScore(),
                 ),
                 _buildTestButton(
+                  'Submit Failed Score',
+                  Icons.cancel,
+                  Colors.red,
+                  () => _submitFailedScore(),
+                ),
+                _buildTestButton(
                   'Get Leaderboard',
                   Icons.leaderboard,
                   Colors.orange,
@@ -312,6 +318,27 @@ class _TestScreenState extends State<TestScreen> {
       setState(() => _status = 'Test score submitted successfully');
     } catch (e) {
       setState(() => _status = 'Error submitting score: $e');
+    } finally {
+      setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _submitFailedScore() async {
+    setState(() {
+      _isLoading = true;
+      _status = 'Submitting failed score...';
+    });
+
+    try {
+      await submitScore(
+        attempts: 5,
+        solved: false,
+        timeMs: 60000,
+        animalForTesting: testingMode ? 'test_animal_failed' : null,
+      );
+      setState(() => _status = 'Failed score submitted successfully');
+    } catch (e) {
+      setState(() => _status = 'Error submitting failed score: $e');
     } finally {
       setState(() => _isLoading = false);
     }
