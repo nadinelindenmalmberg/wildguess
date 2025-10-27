@@ -121,8 +121,12 @@ class StatisticsService {
       final hintDistribution = <int, int>{};
       for (int i = 1; i <= 5; i++) {
         hintDistribution[i] = recentGames.where((game) => 
-          game['question_index'] == i).length;
+          game['question_index'] == i && game['is_correct'] == true).length;
       }
+      
+      // Count failed attempts (is_correct = false)
+      final failedCount = recentGames.where((game) => 
+        game['is_correct'] == false).length;
       
       final totalGames = recentGames.length;
       final currentHintCount = hintDistribution[hintIndex] ?? 0;
@@ -135,6 +139,7 @@ class StatisticsService {
           'percentage': defaultDistribution[hintIndex] ?? 0,
           'totalGames': totalGames,
           'hintDistribution': defaultDistribution,
+          'failedCount': failedCount,
           'isLocal': true,
           'isDefault': true,
         };
@@ -144,6 +149,7 @@ class StatisticsService {
         'percentage': percentage,
         'totalGames': totalGames,
         'hintDistribution': hintDistribution,
+        'failedCount': failedCount,
         'isLocal': true,
         'isDefault': false,
       };
@@ -155,6 +161,7 @@ class StatisticsService {
         'percentage': defaultDistribution[hintIndex] ?? 0,
         'totalGames': 0,
         'hintDistribution': defaultDistribution,
+        'failedCount': 0,
         'isLocal': true,
         'isDefault': true,
       };

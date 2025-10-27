@@ -62,6 +62,10 @@ class _QuizResultScreenState extends State<QuizResultScreen> {
               entry['attempts'] == i).length;
           }
           
+          // Count failed attempts (solved = false)
+          final failedCount = leaderboard.where((entry) => 
+            entry['solved'] == false).length;
+          
           final currentHintCount = hintDistribution[widget.hintIndex] ?? 0;
           final percentage = totalPlayers > 0 ? (currentHintCount / totalPlayers * 100).round() : 0;
           
@@ -71,6 +75,7 @@ class _QuizResultScreenState extends State<QuizResultScreen> {
                 'percentage': percentage,
                 'totalGames': totalPlayers,
                 'hintDistribution': hintDistribution,
+                'failedCount': failedCount,
                 'isLocal': false,
                 'isDefault': false,
                 'isGlobal': true,
@@ -87,9 +92,13 @@ class _QuizResultScreenState extends State<QuizResultScreen> {
       
       // Fallback to local statistics if Supabase fails
       final stats = await StatisticsService.getDailyStatistics(widget.hintIndex);
+      // Add failed count for local statistics
+      final localStats = Map<String, dynamic>.from(stats);
+      localStats['failedCount'] = stats['failedCount'] ?? 0;
+      
       if (mounted) {
         setState(() {
-          _dailyStats = stats;
+          _dailyStats = localStats;
           _isLoadingStats = false;
         });
       }
@@ -170,21 +179,32 @@ class _QuizResultScreenState extends State<QuizResultScreen> {
           _StatsRow(attempt: '3', percent: 52, highlight: true, isEnglish: widget.isEnglish),
           _StatsRow(attempt: '4', percent: 20, isEnglish: widget.isEnglish),
           _StatsRow(attempt: '5', percent: 9, isEnglish: widget.isEnglish),
+          _StatsRow(attempt: 'X', percent: 0, isEnglish: widget.isEnglish),
         ],
       );
     }
     
     final hintDistribution = _dailyStats['hintDistribution'] as Map<int, int>? ?? {};
+    final failedCount = _dailyStats['failedCount'] ?? 0;
+    final totalGames = _dailyStats['totalGames'] ?? 1;
     
     return Column(
       children: [
+        // Rows 1-5 for successful attempts
         for (int i = 1; i <= 5; i++)
           _StatsRow(
             attempt: i.toString(), 
-            percent: hintDistribution[i] ?? 0, 
-            highlight: i == widget.hintIndex,
+            percent: totalGames > 0 ? ((hintDistribution[i] ?? 0) / totalGames * 100).round() : 0, 
+            highlight: i == widget.hintIndex && widget.isCorrect,
             isEnglish: widget.isEnglish,
           ),
+        // Row X for failed attempts
+        _StatsRow(
+          attempt: 'X', 
+          percent: totalGames > 0 ? (failedCount / totalGames * 100).round() : 0, 
+          highlight: !widget.isCorrect && widget.hintIndex == 5,
+          isEnglish: widget.isEnglish,
+        ),
       ],
     );
   }
@@ -469,21 +489,21 @@ void _showCluesDialog(BuildContext context) {
                         },
                         child: Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-                          child: Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
                                       widget.animal.name.isNotEmpty ? widget.animal.name : 'Unknown Animal',
-                                      style: GoogleFonts.ibmPlexMono(
+                                    style: GoogleFonts.ibmPlexMono(
                                         fontSize: 20,
-                                        fontWeight: FontWeight.w600,
-                                        color: Colors.black,
-                                      ),
+                                      fontWeight: FontWeight.w600,
+                                      color: Colors.black,
                                     ),
+                                  ),
                                     if (widget.animal.scientificName.isNotEmpty) ...[
                                       const SizedBox(height: 4),
                                       Text(
@@ -571,16 +591,16 @@ void _showCluesDialog(BuildContext context) {
                                             ),
                                           ),
                                           Expanded(
-                                            child: Text(
+                          child: Text(
                                               hint,
-                                              style: GoogleFonts.ibmPlexMono(
+                            style: GoogleFonts.ibmPlexMono(
                                                 fontSize: 13,
-                                                color: Colors.black87,
-                                                height: 1.4,
-                                              ),
-                                            ),
-                                          ),
-                                        ],
+                              color: Colors.black87,
+                              height: 1.4,
+                            ),
+                          ),
+                        ),
+                      ],
                                       ),
                                     )),
                                   ],
@@ -626,12 +646,12 @@ void _showCluesDialog(BuildContext context) {
                     children: [
                       Text(
                         widget.isEnglish ? 'daily statistics' : 'daglig statistik',
-                        style: GoogleFonts.ibmPlexMono(
-                          color: Colors.white,
-                          fontSize: 20,
-                          fontWeight: FontWeight.w600,
-                          letterSpacing: 1.0,
-                        ),
+                    style: GoogleFonts.ibmPlexMono(
+                      color: Colors.white,
+                      fontSize: 20,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: 1.0,
+                    ),
                       ),
                       if (_dailyStats['isGlobal'] == true) ...[
                         const SizedBox(height: 4),
@@ -664,9 +684,9 @@ void _showCluesDialog(BuildContext context) {
                       )
                     : Text(
                         _getStatisticsText(),
-                        textAlign: TextAlign.center,
-                        style: GoogleFonts.ibmPlexMono(color: Colors.white70, fontSize: 12),
-                      ),
+                    textAlign: TextAlign.center,
+                    style: GoogleFonts.ibmPlexMono(color: Colors.white70, fontSize: 12),
+                  ),
                 ),
                 const SizedBox(height: 12),
                 
