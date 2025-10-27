@@ -22,6 +22,8 @@ class HistoryService {
         'animal_name': animal.name,
         'animal_scientific_name': animal.scientificName,
         'animal_image_url': animal.imageUrl,
+        'animal_description': animal.description, // *** ADD DESCRIPTION ***
+        'animal_hints': animal.hints, 
         'is_correct': isCorrect,
         'question_index': questionIndex,
         'total_questions': totalQuestions,
@@ -87,7 +89,7 @@ class HistoryService {
       final correctGames = history.where((game) => game['is_correct'] == true).length;
       final accuracy = totalGames > 0 ? (correctGames / totalGames) * 100 : 0.0;
       
-      final scores = history.map((game) => game['score'] as int).toList();
+      final scores = history.map((game) => game['score'] as int? ?? 0).toList();  // *** ADD SCORE ***  
       final averageScore = scores.isNotEmpty ? scores.reduce((a, b) => a + b) / scores.length : 0.0;
       final bestScore = scores.isNotEmpty ? scores.reduce((a, b) => a > b ? a : b) : 0;
       
