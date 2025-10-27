@@ -28,9 +28,11 @@ class ApiService {
   Future<AnimalData> getRandomAnimal() async {
     // Check if we're in test mode
     final isTestMode = await _isTestMode();
+    print('[ApiService] Test mode check: $isTestMode');
     
     if (isTestMode) {
       // Test mode: return random animal
+      print('[ApiService] Using test mode - returning random animal');
       try {
         return await getRandomAnimalFromAPI();
       } catch (e) {
@@ -39,6 +41,7 @@ class ApiService {
       }
     } else {
       // Production mode: return today's animal (same for all players)
+      print('[ApiService] Using production mode - returning today\'s animal');
       return await _getTodaysAnimal();
     }
   }
@@ -46,8 +49,11 @@ class ApiService {
   /// Check if we're in test mode by looking at testingMode from statistics service
   Future<bool> _isTestMode() async {
     try {
+      // Access the global testingMode variable from statistics_service.dart
+      print('[ApiService] Current testingMode value: $testingMode');
       return testingMode;
     } catch (e) {
+      print('[ApiService] Error accessing testingMode: $e');
       return false;
     }
   }
@@ -66,7 +72,9 @@ class ApiService {
       if (allSpecies.isNotEmpty) {
         final selectedAnimal = allSpecies[random.nextInt(allSpecies.length)];
         print('[ApiService] Today\'s animal (${dayKey}): ${selectedAnimal.name}');
-        return selectedAnimal;
+        
+        // Ensure image is loaded for the selected animal
+        return await _ensureImageLoaded(selectedAnimal);
       } else {
         throw Exception('No species available');
       }
@@ -74,6 +82,47 @@ class ApiService {
       print('[ApiService] Failed to get today\'s animal, using test animal: $e');
       return _getTestAnimal();
     }
+  }
+
+  /// Ensure image is loaded for an animal (lazy loading)
+  Future<AnimalData> _ensureImageLoaded(AnimalData animal) async {
+    // If animal already has an image, return it
+    if (animal.imageUrl.isNotEmpty) {
+      return animal;
+    }
+    
+    try {
+      print('[ApiService] Fetching image for ${animal.name} (${animal.scientificName})');
+      final imageUrl = await ImageService.getAnimalImageUrl(
+        animal.scientificName, 
+        swedishName: animal.name
+      );
+      
+      if (imageUrl.isNotEmpty) {
+        // Update the cached animal data with the image URL
+        final updatedAnimal = AnimalData(
+          name: animal.name,
+          scientificName: animal.scientificName,
+          description: animal.description,
+          hints: animal.hints,
+          imageUrl: imageUrl,
+        );
+        
+        // Update cache if this animal is cached
+        for (final entry in _speciesCache.entries) {
+          if (entry.value.name == animal.name && entry.value.scientificName == animal.scientificName) {
+            _speciesCache[entry.key] = updatedAnimal;
+            break;
+          }
+        }
+        
+        return updatedAnimal;
+      }
+    } catch (e) {
+      print('[ApiService] Error loading image for ${animal.name}: $e');
+    }
+    
+    return animal; // Return original animal if image loading fails
   }
 
   /// Get a test animal when API is unavailable
@@ -348,15 +397,6 @@ class ApiService {
         }
 
         if (first != null) {
-          // Get image URL
-          String imageUrl = '';
-          try {
-            imageUrl = await ImageService.getAnimalImageUrl(sci, swedishName: name);
-            print('[ApiService] Image URL for $name: ${imageUrl.isNotEmpty ? "Found" : "Not found"}');
-          } catch (e) {
-            print('[ApiService] Error getting image for $sci: $e');
-          }
-          
           // Debug: Show what data we're extracting
           print('[ApiService] === EXTRACTED DATA ===');
           print('[ApiService] Name: $name');
@@ -368,16 +408,18 @@ class ApiService {
           print('[ApiService] SpreadAndStatus: $spreadAndStatus');
           print('[ApiService] Ecology Changed Date: $ecologyChangedDate');
           print('[ApiService] Hints: $hints');
-          print('[ApiService] Image URL: ${imageUrl.isNotEmpty ? "Found" : "Not found"}');
           print('[ApiService] === END EXTRACTED DATA ===');
           
-          return AnimalData(
+          final animalData = AnimalData(
             name: name.isNotEmpty ? name : 'Taxon $taxaId',
             scientificName: sci,
             description: desc,
             hints: hints.isNotEmpty ? hints : ['Ingen ledtråd tillgänglig'],
-            imageUrl: imageUrl,
+            imageUrl: '', // Will be loaded by _ensureImageLoaded
           );
+          
+          // Ensure image is loaded
+          return await _ensureImageLoaded(animalData);
         }
       }
 
