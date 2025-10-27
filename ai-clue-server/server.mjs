@@ -138,3 +138,77 @@ app.listen(port, '0.0.0.0', () => {
   console.log('  POST /chat   - Generic chat endpoint');
   console.log('  POST /clues  - Animal clue generation');
 });
+
+// --- NY ENDPOINT FÖR FAKTA ---
+const factCache = new Map(); // Separat cache för fakta
+
+app.post('/facts', async (req, res) => {
+  try {
+    const { animalName, scientificName, description, isEnglish = false } = req.body || {};
+    if (!animalName || typeof animalName !== 'string') return res.status(400).json({ error: 'animalName required' });
+
+    const language = isEnglish ? 'English' : 'Swedish';
+    const cacheKey = `facts::${animalName}::${scientificName || ''}::${language}`;
+    if (factCache.has(cacheKey)) return res.json({ facts: factCache.get(cacheKey) });
+
+    const system = [
+      'You provide 2-3 short, interesting, and easy-to-understand facts about a specific animal for a quiz result screen.',
+      'Rules:',
+      '- Output STRICT JSON matching this schema: {"facts": ["string", "string", "string"]}', // Be om 3, men kan vara färre
+      '- Number of facts: 2 or 3.',
+      `- Language: ${language}`,
+      '- Facts should be interesting tidbits, not generic descriptions.',
+      '- Keep facts concise (1-2 sentences each).',
+      '- You CAN mention the animal\'s name.',
+      '- Focus on surprising, unique, or lesser-known aspects (e.g., special abilities, behaviors, records).',
+      '- Avoid overly complex scientific terms unless necessary and explained simply.',
+    ].join('\n');
+
+    const user = `
+Generate 2-3 interesting facts for this animal:
+- Name: ${animalName} (${language})
+- Scientific Name: ${scientificName || 'Unknown'}
+- Description: ${description || 'No description'}
+
+Examples of good facts:
+- "The Arctic Fox's fur changes color with the seasons for camouflage."
+- "Moose can dive underwater and hold their breath for up to a minute."
+- "Hedgehogs are surprisingly good swimmers."
+
+Return ONLY a JSON array of 2 or 3 strings.
+`.trim();
+
+    const completion = await openai.chat.completions.create({
+      model: 'gpt-4o-mini',
+      temperature: 0.6, // Lite mer kreativitet för fakta
+      response_format: { type: 'json_object' },
+      messages: [
+        { role: 'system', content: system },
+        { role: 'user', content: user },
+      ],
+      max_tokens: 250, // Bör räcka för 2-3 korta fakta
+    });
+
+    // Parse the JSON text into an object
+    const json = JSON.parse(completion.choices[0].message.content);
+    let facts = json.facts;
+
+    // Ensure facts is an array and limit to max 3
+    if (!Array.isArray(facts)) {
+      facts = []; // Default to empty array if parsing fails
+      console.warn('AI did not return a valid facts array for:', animalName);
+    }
+    facts = facts.slice(0, 3); // Ta max 3 fakta
+
+    // Cache + return
+    factCache.set(cacheKey, facts);
+    // Kortare cache-tid för fakta kanske? T.ex. 1 timme
+    setTimeout(() => factCache.delete(cacheKey), 3_600_000); // 1 hour cache
+
+    res.json({ facts });
+  } catch (err) {
+    console.error('facts error', err);
+    res.status(500).json({ error: 'Failed to generate facts' });
+  }
+});
+// --- SLUT PÅ NY ENDPOINT ---

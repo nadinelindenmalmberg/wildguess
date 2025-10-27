@@ -2,104 +2,187 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:http/http.dart' as http;
 import '../models/animal_data.dart';
-import '../core/constants.dart';
+// core/constants behövs inte här längre om _backendUrl är direkt i klassen
 
 class AiClueService {
   // Use your Node.js backend server (secure, cached, rate-limited)
-  static const String _backendUrl = 'http://127.0.0.1:3000';
-  
+  static const String _backendUrl = 'http://127.0.0.1:3000'; // Eller din publika IP/domän
+
   final http.Client _client;
-  
-  // Request throttling and caching
-  bool _isLoading = false;
+
+  // Clue cache
+  bool _isLoadingClues = false;
   final Map<String, List<String>> _clueCache = {};
-  final Map<String, DateTime> _cacheTimestamps = {};
-  static const Duration _cacheExpiry = Duration(hours: 24);
+  final Map<String, DateTime> _clueCacheTimestamps = {};
+  static const Duration _clueCacheExpiry = Duration(hours: 24);
+
+  // --- NYTT FÖR FAKTA ---
+  // Fact cache
+  bool _isLoadingFacts = false;
+  final Map<String, List<String>> _factCache = {};
+  final Map<String, DateTime> _factCacheTimestamps = {};
+  static const Duration _factCacheExpiry = Duration(hours: 1); // Kortare cache för fakta?
+  // --- SLUT PÅ NYTT FÖR FAKTA ---
+
 
   AiClueService({http.Client? client}) : _client = client ?? http.Client();
 
   /// Generate creative clues for an animal using your secure backend
   Future<List<String>> generateClues(AnimalData animal, {bool isEnglish = false}) async {
-    // Request throttling - prevent multiple calls in quick succession
-    if (_isLoading) {
-      print('[AiClueService] Request already in progress, skipping...');
-      return animal.hints; // Return fallback hints
+    if (_isLoadingClues) {
+      print('[AiClueService] Clue request already in progress, skipping...');
+      return animal.hints;
     }
-    
-    // Create cache key
-    final cacheKey = '${animal.scientificName}_${isEnglish ? 'en' : 'sv'}';
-    
-    // Check cache first
+
+    final cacheKey = 'clues::${animal.scientificName}_${isEnglish ? 'en' : 'sv'}';
+
     if (_clueCache.containsKey(cacheKey)) {
-      final timestamp = _cacheTimestamps[cacheKey];
-      if (timestamp != null && DateTime.now().difference(timestamp) < _cacheExpiry) {
+      final timestamp = _clueCacheTimestamps[cacheKey];
+      if (timestamp != null && DateTime.now().difference(timestamp) < _clueCacheExpiry) {
         print('[AiClueService] Using cached clues for: ${animal.name}');
         return _clueCache[cacheKey]!;
       } else {
-        // Cache expired, remove it
         _clueCache.remove(cacheKey);
-        _cacheTimestamps.remove(cacheKey);
+        _clueCacheTimestamps.remove(cacheKey);
       }
     }
-    
+
     try {
-      _isLoading = true;
+      _isLoadingClues = true;
       print('[AiClueService] Generating clues for: ${animal.name}');
-      
-      final clues = await _callBackendWithRetry(animal, isEnglish);
-      
-      // Cache the results
+
+      final clues = await _callBackendWithRetry(
+        animal,
+        isEnglish,
+        endpoint: '/clues',
+        resultKey: 'clues',
+        fallback: animal.hints,
+      );
+
       _clueCache[cacheKey] = clues;
-      _cacheTimestamps[cacheKey] = DateTime.now();
-      
+      _clueCacheTimestamps[cacheKey] = DateTime.now();
+
       return clues;
     } catch (e) {
       print('[AiClueService] Error generating clues: $e');
-      // Fallback to original hints if AI fails
       return animal.hints;
     } finally {
-      _isLoading = false;
+      _isLoadingClues = false;
     }
   }
 
-  /// Call backend with exponential backoff retry logic
-  Future<List<String>> _callBackendWithRetry(AnimalData animal, bool isEnglish) async {
+  // --- NY METOD FÖR FAKTA ---
+  /// Generate interesting facts for an animal using your secure backend
+  Future<List<String>> generateFacts(AnimalData animal, {bool isEnglish = false}) async {
+    if (_isLoadingFacts) {
+      print('[AiClueService] Fact request already in progress, skipping...');
+      // Returnera en tom lista eller någon standardtext vid pågående anrop
+      return isEnglish ? ['Loading facts...'] : ['Laddar fakta...'];
+    }
+
+    final cacheKey = 'facts::${animal.scientificName}_${isEnglish ? 'en' : 'sv'}';
+
+    if (_factCache.containsKey(cacheKey)) {
+      final timestamp = _factCacheTimestamps[cacheKey];
+      if (timestamp != null && DateTime.now().difference(timestamp) < _factCacheExpiry) {
+        print('[AiClueService] Using cached facts for: ${animal.name}');
+        return _factCache[cacheKey]!;
+      } else {
+        _factCache.remove(cacheKey);
+        _factCacheTimestamps.remove(cacheKey);
+      }
+    }
+
+    try {
+      _isLoadingFacts = true;
+      print('[AiClueService] Generating facts for: ${animal.name}');
+
+      final facts = await _callBackendWithRetry(
+        animal,
+        isEnglish,
+        endpoint: '/facts', // Anropa nya endpointen
+        resultKey: 'facts', // Förväntad nyckel i JSON-svaret
+        fallback: [],       // Fallback är en tom lista om fakta misslyckas
+      );
+
+      // Spara bara om fakta inte är tom (för att undvika att cacha misslyckanden)
+      if (facts.isNotEmpty) {
+         _factCache[cacheKey] = facts;
+         _factCacheTimestamps[cacheKey] = DateTime.now();
+      }
+
+      return facts;
+    } catch (e) {
+      print('[AiClueService] Error generating facts: $e');
+      // Returnera tom lista vid fel
+      return [];
+    } finally {
+      _isLoadingFacts = false;
+    }
+  }
+  // --- SLUT PÅ NY METOD ---
+
+  // --- UPPDATERAD _callBackendWithRetry FÖR ATT HANTERA OLIKA ENDPOINTS ---
+  /// Call backend with exponential backoff retry logic (Generic)
+  Future<List<String>> _callBackendWithRetry(
+    AnimalData animal,
+    bool isEnglish, {
+    required String endpoint, // '/clues' or '/facts'
+    required String resultKey, // 'clues' or 'facts'
+    required List<String> fallback, // Fallback vid totalt misslyckande
+  }) async {
     int retryCount = 0;
     const maxRetries = 2;
-    
+
     while (retryCount <= maxRetries) {
       try {
-        return await _callBackend(animal, isEnglish);
+        return await _callBackend(
+          animal,
+          isEnglish,
+          endpoint: endpoint,
+          resultKey: resultKey,
+        );
       } catch (e) {
         retryCount++;
-        
-        // Handle specific HTTP errors
+        final waitSeconds = 2 * retryCount;
+
         if (e.toString().contains('429')) {
-          print('[AiClueService] Rate limited (429), waiting before retry...');
-          await Future.delayed(Duration(seconds: 2 * retryCount)); // Exponential backoff
+          print('[AiClueService] Rate limited (429) on $endpoint, waiting ${waitSeconds}s before retry...');
+          await Future.delayed(Duration(seconds: waitSeconds));
         } else if (e.toString().contains('500') || e.toString().contains('502') || e.toString().contains('503')) {
-          print('[AiClueService] Server error, retrying in ${2 * retryCount} seconds...');
-          await Future.delayed(Duration(seconds: 2 * retryCount));
-        } else if (e is SocketException) {
-          print('[AiClueService] Network error, retrying in ${2 * retryCount} seconds...');
-          await Future.delayed(Duration(seconds: 2 * retryCount));
+          print('[AiClueService] Server error on $endpoint, retrying in ${waitSeconds}s...');
+          await Future.delayed(Duration(seconds: waitSeconds));
+        } else if (e is SocketException || e is http.ClientException) { // Fånga ClientException också
+          print('[AiClueService] Network error on $endpoint ($e), retrying in ${waitSeconds}s...');
+          await Future.delayed(Duration(seconds: waitSeconds));
         } else {
-          // For other errors, don't retry
-          rethrow;
+           print('[AiClueService] Unretryable error on $endpoint: $e'); // Logga felet
+          rethrow; // For other errors, don't retry, throw immediately
         }
-        
+
         if (retryCount > maxRetries) {
-          throw Exception('Max retries exceeded. Last error: $e');
+           print('[AiClueService] Max retries exceeded for $endpoint. Last error: $e'); // Logga felet
+          // Returnera fallback istället för att kasta exception efter max retries
+          return fallback;
+          // throw Exception('Max retries exceeded for $endpoint. Last error: $e');
         }
       }
     }
-    
-    throw Exception('Unexpected error in retry logic');
+    // Denna kod bör inte nås på grund av logiken ovan, men för säkerhets skull:
+    print('[AiClueService] Unexpected exit from retry loop for $endpoint');
+    return fallback;
+    // throw Exception('Unexpected error in retry logic for $endpoint');
   }
 
-  Future<List<String>> _callBackend(AnimalData animal, bool isEnglish) async {
-    final uri = Uri.parse('$_backendUrl/clues');
-    
+  // --- UPPDATERAD _callBackend FÖR ATT HANTERA OLIKA ENDPOINTS ---
+  Future<List<String>> _callBackend(
+    AnimalData animal,
+    bool isEnglish, {
+    required String endpoint,
+    required String resultKey,
+  }) async {
+    final uri = Uri.parse('$_backendUrl$endpoint');
+
     final response = await _client.post(
       uri,
       headers: {
@@ -111,42 +194,52 @@ class AiClueService {
         'description': animal.description,
         'isEnglish': isEnglish,
       }),
-    );
+    ).timeout(const Duration(seconds: 20)); // Lägg till timeout
 
     if (response.statusCode == 200) {
-      final data = json.decode(response.body);
-      final clues = data['clues'] as List<dynamic>?;
-      if (clues != null && clues.isNotEmpty) {
-        return clues.cast<String>();
+      try {
+        final data = json.decode(response.body);
+        final results = data[resultKey] as List<dynamic>?;
+        if (results != null) { // Tillåt tom lista för fakta
+          return results.cast<String>();
+        }
+         // Om nyckeln saknas eller är null, men status är 200, logga och kasta fel
+         print('[AiClueService] API $endpoint returned 200 but key "$resultKey" was missing or null. Body: ${response.body}');
+         throw Exception('API returned 200 but key "$resultKey" was missing or null.');
+      } catch (e) {
+         // Fånga JSON-parsningsfel etc.
+         print('[AiClueService] Error processing successful response from $endpoint: $e. Body: ${response.body}');
+         throw Exception('Failed to process response from $endpoint: $e');
       }
-      throw Exception('No clues in response');
     } else if (response.statusCode == 429) {
-      throw Exception('Rate limited (429) - Too many requests. Please wait a few seconds and try again.');
+      throw Exception('Rate limited (429) - Too many requests.');
     } else if (response.statusCode >= 500) {
-      throw Exception('Server error (${response.statusCode}) - Please try again later.');
+      throw Exception('Server error (${response.statusCode})');
     } else {
-      throw Exception('API error (${response.statusCode}): ${response.body}');
+      // Annat klientfel (t.ex. 400 Bad Request)
+       print('[AiClueService] API error ($endpoint - ${response.statusCode}): ${response.body}');
+      throw Exception('API error (${response.statusCode})');
     }
   }
+  // --- SLUT PÅ UPPDATERINGAR ---
 
 
-  /// Clear the clue cache
+  /// Clear both clue and fact caches
   void clearCache() {
     _clueCache.clear();
-    _cacheTimestamps.clear();
-    print('[AiClueService] Cache cleared');
+    _clueCacheTimestamps.clear();
+    _factCache.clear();
+    _factCacheTimestamps.clear();
+    print('[AiClueService] All caches cleared');
   }
-  
-  /// Get cache statistics
+
+  // ... (getCacheStats och dispose är oförändrade) ...
+    /// Get cache statistics
   Map<String, dynamic> getCacheStats() {
     return {
-      'cachedItems': _clueCache.length,
-      'oldestCache': _cacheTimestamps.values.isNotEmpty 
-          ? _cacheTimestamps.values.reduce((a, b) => a.isBefore(b) ? a : b)
-          : null,
-      'newestCache': _cacheTimestamps.values.isNotEmpty 
-          ? _cacheTimestamps.values.reduce((a, b) => a.isAfter(b) ? a : b)
-          : null,
+      'cachedClues': _clueCache.length,
+      'cachedFacts': _factCache.length,
+      // Du kan lägga till tidsstämplar om du vill
     };
   }
 
@@ -154,4 +247,3 @@ class AiClueService {
     _client.close();
   }
 }
-
