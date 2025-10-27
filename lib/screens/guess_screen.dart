@@ -52,6 +52,7 @@ class _GuessScreenState extends State<GuessScreen> {
           hintIndex: 1,
           totalHints: 1,
           aiClues: const [], // Empty list since this is a simple guess screen
+          totalTimeMs: 0, // No time tracking in simple guess screen
         ),
       ),
     );

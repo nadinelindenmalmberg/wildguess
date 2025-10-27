@@ -21,6 +21,24 @@ Future<void> ensureAnonSession() async {
   await supa.rpc('ensure_player');
 }
 
+/// Calculate score based on attempts and time using the new formula
+/// Formula: base = 100, attemptPenalty = 15 * (attempts - 1), timePenalty = min(time_ms / 1000 / 2, 40)
+/// score = clamp(base - attemptPenalty - timePenalty, 0, 100)
+int calculateScore({
+  required int attempts,
+  required int timeMs,
+  required bool solved,
+}) {
+  if (!solved) return 0;
+  
+  const int base = 100;
+  final int attemptPenalty = 15 * (attempts - 1);
+  final double timePenalty = (timeMs / 1000.0 / 2.0).clamp(0, 40);
+  
+  final int score = (base - attemptPenalty - timePenalty).round().clamp(0, 100);
+  return score;
+}
+
 Future<void> setNickname(String nickname) async {
   await ensureAnonSession();
   final userId = supa.auth.currentUser!.id;
@@ -28,10 +46,9 @@ Future<void> setNickname(String nickname) async {
 }
 
 Future<void> submitScore({
-  required int score,
   required int attempts,
   required bool solved,
-  int? timeMs,
+  required int timeMs,
   String? animalForTesting,
 }) async {
   await ensureAnonSession();
@@ -39,6 +56,13 @@ Future<void> submitScore({
   final key = testingMode
       ? _dayKeyTesting(nowUtc, animalForTesting ?? 'test')
       : _dayKeyDaily(nowUtc);
+
+  // Calculate score using the new formula
+  final int score = calculateScore(
+    attempts: attempts,
+    timeMs: timeMs,
+    solved: solved,
+  );
 
   await supa.rpc('submit_score', params: {
     'p_day_key': key,

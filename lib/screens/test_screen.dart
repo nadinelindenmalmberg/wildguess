@@ -304,7 +304,6 @@ class _TestScreenState extends State<TestScreen> {
 
     try {
       await submitScore(
-        score: 5,
         attempts: 3,
         solved: true,
         timeMs: 30000,

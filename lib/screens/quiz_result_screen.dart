@@ -13,6 +13,7 @@ class QuizResultScreen extends StatefulWidget {
   final int hintIndex;
   final int totalHints;
   final List<String> aiClues;
+  final int totalTimeMs;
 
   const QuizResultScreen({
     super.key,
@@ -22,6 +23,7 @@ class QuizResultScreen extends StatefulWidget {
     required this.hintIndex,
     required this.totalHints,
     required this.aiClues,
+    required this.totalTimeMs,
   });
 
   @override
@@ -111,13 +113,12 @@ class _QuizResultScreenState extends State<QuizResultScreen> {
       completedAt: DateTime.now(),
     );
 
-    // Submit to Supabase
+    // Submit to Supabase with new scoring system
     try {
       await submitScore(
-        score: widget.isCorrect ? (widget.totalHints - widget.hintIndex + 1) : 0,
         attempts: widget.hintIndex,
         solved: widget.isCorrect,
-        timeMs: null, // We don't track time currently
+        timeMs: widget.totalTimeMs,
         animalForTesting: testingMode ? widget.animal.name : null,
       );
       print('Score submitted to Supabase successfully');
@@ -615,6 +616,31 @@ class _QuizResultScreenState extends State<QuizResultScreen> {
                   ),
                 ),
                 const SizedBox(height: 24),
+                
+                // Score display
+                if (widget.isCorrect) ...[
+                  Center(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      decoration: BoxDecoration(
+                        color: Colors.blue.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.blue.withOpacity(0.3)),
+                      ),
+                      child: Text(
+                        widget.isEnglish 
+                            ? 'Your Score: ${calculateScore(attempts: widget.hintIndex, timeMs: widget.totalTimeMs, solved: widget.isCorrect)}/100'
+                            : 'Din poäng: ${calculateScore(attempts: widget.hintIndex, timeMs: widget.totalTimeMs, solved: widget.isCorrect)}/100',
+                        style: GoogleFonts.ibmPlexMono(
+                          color: Colors.blue,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                ],
                 
                 // Statistics section
                 Center(

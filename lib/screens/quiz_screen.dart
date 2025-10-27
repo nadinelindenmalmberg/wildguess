@@ -47,6 +47,10 @@ class _QuizScreenState extends State<QuizScreen> {
   bool _hasChosenSuggestion = false; // Behålls för ev. framtida bruk
   bool _isIncorrect = false;
   bool _isCorrect = false;
+  
+  // Time tracking for scoring
+  DateTime? _quizStartTime;
+  int _totalTimeMs = 0;
   String? _selectedAnswer; // Behålls för ev. framtida bruk
   bool _pressedIDontKnow = false;
   
@@ -70,6 +74,9 @@ class _QuizScreenState extends State<QuizScreen> {
     _currentLevel = widget.questionIndex;
     _maxReachedLevel = widget.questionIndex;
     _loadLevelHistory();
+    
+    // Start time tracking
+    _quizStartTime = DateTime.now();
   }
 
   void _onFocusChange() {
@@ -140,7 +147,7 @@ class _QuizScreenState extends State<QuizScreen> {
     }
     
     if (query.length < 2) {
-      setState(() {
+    setState(() {
         _filtered = const [];
         _searchResults = [];
         _isSearching = false;
@@ -153,10 +160,10 @@ class _QuizScreenState extends State<QuizScreen> {
       
       setState(() {
         _isSearching = true;
-        _hasChosenSuggestion = false;
-        _isIncorrect = false;
-        _isCorrect = false;
-        _selectedAnswer = null;
+      _hasChosenSuggestion = false;
+      _isIncorrect = false;
+      _isCorrect = false;
+      _selectedAnswer = null;
       });
       
       try {
@@ -307,10 +314,10 @@ class _QuizScreenState extends State<QuizScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final String titleText = widget.isEnglish
+    final String titleText = widget.isEnglish 
         ? 'Clue ${_currentLevel}/${widget.totalQuestions}'
         : 'Ledtråd ${_currentLevel}/${widget.totalQuestions}';
-
+    
     final bool canGuess = _searchController.text.trim().isNotEmpty && !_isViewingPreviousLevel;
 
     return Scaffold( // Scaffold är tillgänglig
@@ -318,18 +325,18 @@ class _QuizScreenState extends State<QuizScreen> {
       body: Stack( // Stack är tillgänglig
         children: [
           Container( // Container är tillgänglig
-            color: Colors.black,
+        color: Colors.black,
             child: SafeArea( // SafeArea är tillgänglig
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
                 // *** INGEN Expanded/SingleChildScrollView här ***
                 child: Column( // Huvud-Column
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
                     // Header med knappar
-                    Row(
-                      children: [
-                        Container(
+                Row(
+                  children: [
+                    Container(
                           decoration: BoxDecoration(color: _newColor.withOpacity(0.08), borderRadius: BorderRadius.circular(12)), // BoxDecoration är tillgänglig
                           child: IconButton( // IconButton är tillgänglig
                             icon: const Icon(Icons.home_rounded, size: 20),
@@ -339,40 +346,40 @@ class _QuizScreenState extends State<QuizScreen> {
                           ),
                         ),
                         const Spacer(), // Spacer är tillgänglig
-                        Container(
+                    Container(
                           decoration: BoxDecoration(color: _newColor.withOpacity(0.08), borderRadius: BorderRadius.circular(12)),
-                          child: IconButton(
-                            icon: const Icon(Icons.info_outline_rounded, size: 20),
+                      child: IconButton(
+                        icon: const Icon(Icons.info_outline_rounded, size: 20),
                             color: _newColor,
                             onPressed: () => _showHowToPlayDialog(context),
                             style: IconButton.styleFrom(padding: const EdgeInsets.all(8), minimumSize: const Size(40, 40)),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-
-                    // Frågetitel
-                    Center( // Center är tillgänglig
-                      child: Text(
-                        titleText,
-                        style: GoogleFonts.ibmPlexMono(
-                          fontSize: 36,
-                          fontWeight: FontWeight.w700,
-                          color: _newColor,
-                          letterSpacing: -0.5,
-                        ),
                       ),
                     ),
-                    const SizedBox(height: 24),
-
+                  ],
+                ),
+                const SizedBox(height: 8),
+                
+                    // Frågetitel
+                    Center( // Center är tillgänglig
+                  child: Text(
+                    titleText,
+                    style: GoogleFonts.ibmPlexMono(
+                      fontSize: 36,
+                      fontWeight: FontWeight.w700,
+                          color: _newColor,
+                      letterSpacing: -0.5,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 24),
+                
                     // Level navigation indicators (Göms med Visibility)
                     Visibility( // Visibility är tillgänglig
                       visible: !_isKeyboardVisible, // Använder state-variabeln
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Center(
+                Center(
                             child: Row(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: List.generate(widget.totalQuestions, (index) {
@@ -388,7 +395,7 @@ class _QuizScreenState extends State<QuizScreen> {
                                     margin: const EdgeInsets.symmetric(horizontal: 4),
                                     width: isCurrentLevel ? 50 : 40,
                                     height: isCurrentLevel ? 50 : 40,
-                                    decoration: BoxDecoration(
+                      decoration: BoxDecoration(
                                       color: isCurrentLevel
                                           ? Colors.white
                                           : hasAnswer
@@ -414,7 +421,7 @@ class _QuizScreenState extends State<QuizScreen> {
                                               _levelHistory.firstWhere((level) => level['levelIndex'] == clueNumber)['isCorrect']
                                                   ? Icons.check
                                                   : Icons.close,
-                                              color: Colors.white,
+                              color: Colors.white,
                                               size: 20,
                                             )
                                           : Text(
@@ -442,38 +449,38 @@ class _QuizScreenState extends State<QuizScreen> {
                     
 
                     // Centrerad sektion
-                    Center(
-                      child: ConstrainedBox(
-                        constraints: const BoxConstraints(maxWidth: 380),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
+                Center(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 380),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
                             // Ledtrådskort (Anpassas med _isKeyboardVisible)
                             AnimatedContainer( // AnimatedContainer är tillgänglig
                               duration: const Duration(milliseconds: 300), // Duration är tillgänglig
                               width: double.infinity,
                               padding: EdgeInsets.all(_isKeyboardVisible ? 12 : 18), // Dynamisk padding
-                              decoration: BoxDecoration(
+                          decoration: BoxDecoration(
                                 color: Colors.black,
-                                borderRadius: BorderRadius.circular(30),
-                                border: Border.all(
+                            borderRadius: BorderRadius.circular(30),
+                            border: Border.all(
                                   color: Colors.white.withOpacity(0.2),
-                                  width: 1,
-                                ),
+                              width: 1,
+                            ),
                                 boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.black.withOpacity(0.1),
-                                    blurRadius: 10,
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.1),
+                                blurRadius: 10,
                                     offset: const Offset(0, 4), // Offset är tillgänglig
-                                  ),
-                                ],
                               ),
+                            ],
+                          ),
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.center,
-                                children: [
+                            children: [
                                   AnimatedDefaultTextStyle( // AnimatedDefaultTextStyle är tillgänglig
                                     duration: const Duration(milliseconds: 300),
-                                    style: GoogleFonts.ibmPlexMono(
+                                  style: GoogleFonts.ibmPlexMono(
                                       fontSize: 18,
                                       color: Colors.white,
                                       height: 1.5,
@@ -502,7 +509,7 @@ class _QuizScreenState extends State<QuizScreen> {
                                 hintText: _isViewingPreviousLevel
                                     ? (widget.isEnglish ? 'Previous answer shown above' : 'Tidigare svar visas ovan')
                                     : (widget.isEnglish ? 'Type your guess here...' : 'Skriv din gissning här...'),
-                                hintStyle: GoogleFonts.ibmPlexMono(
+                                    hintStyle: GoogleFonts.ibmPlexMono(
                                   color: _isViewingPreviousLevel ? Colors.grey[400] : Colors.grey[500],
                                   fontSize: 16,
                                 ),
@@ -532,15 +539,15 @@ class _QuizScreenState extends State<QuizScreen> {
                             
                             // Search suggestions dropdown
                             AnimatedSwitcher( // AnimatedSwitcher är tillgänglig
-                              duration: const Duration(milliseconds: 180),
+                          duration: const Duration(milliseconds: 180),
                               child: _searchFocusNode.hasFocus && !_isIncorrect && !_isCorrect
-                                  ? Container(
+                              ? Container(
                                       key: const ValueKey('suggestions'), // ValueKey är tillgänglig
-                                      margin: const EdgeInsets.only(top: 8),
-                                      decoration: BoxDecoration(
-                                        color: const Color(0xFFE7EFE7),
-                                        borderRadius: BorderRadius.circular(12),
-                                      ),
+                                  margin: const EdgeInsets.only(top: 8),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFE7EFE7),
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
                                       child: _isSearching
                                           ? Padding(
                                               padding: const EdgeInsets.all(16),
@@ -576,49 +583,49 @@ class _QuizScreenState extends State<QuizScreen> {
                                                   ),
                                                   child: ListView.separated( // ListView är tillgänglig
                                                     physics: const BouncingScrollPhysics(), // ScrollPhysics är tillgänglig
-                                                    shrinkWrap: true,
-                                                    itemCount: _filtered.length,
+                                    shrinkWrap: true,
+                                    itemCount: _filtered.length,
                                                     separatorBuilder: (_, __) => const Divider(height: 1, color: Colors.black12), // Divider är tillgänglig
                                                     // *** UPPDATERAD ITEMBUILDER: Latinskt namn borttaget ***
-                                                    itemBuilder: (context, index) {
-                                                      final suggestion = _filtered[index];
+                                    itemBuilder: (context, index) {
+                                      final suggestion = _filtered[index];
                                                       return InkWell( // InkWell är tillgänglig
-                                                        borderRadius: index == 0 || index == _filtered.length - 1
-                                                            ? BorderRadius.only(
+                                        borderRadius: index == 0 || index == _filtered.length - 1
+                                            ? BorderRadius.only(
                                                                 topLeft: Radius.circular(index == 0 ? 12 : 0), // Radius är tillgänglig
-                                                                topRight: Radius.circular(index == 0 ? 12 : 0),
-                                                                bottomLeft: Radius.circular(index == _filtered.length - 1 ? 12 : 0),
-                                                                bottomRight: Radius.circular(index == _filtered.length - 1 ? 12 : 0),
-                                                              )
-                                                            : BorderRadius.zero,
-                                                        onTap: () {
-                                                          _searchController.text = suggestion;
-                                                          _searchFocusNode.unfocus();
-                                                          setState(() {
-                                                            _filtered = const [];
+                                                topRight: Radius.circular(index == 0 ? 12 : 0),
+                                                bottomLeft: Radius.circular(index == _filtered.length - 1 ? 12 : 0),
+                                                bottomRight: Radius.circular(index == _filtered.length - 1 ? 12 : 0),
+                                              )
+                                            : BorderRadius.zero,
+                                        onTap: () {
+                                          _searchController.text = suggestion;
+                                          _searchFocusNode.unfocus();
+                                          setState(() {
+                                            _filtered = const [];
                                                             _searchResults = [];
-                                                            _hasChosenSuggestion = true;
-                                                            _isIncorrect = false;
-                                                            _isCorrect = false;
-                                                            _selectedAnswer = suggestion;
-                                                          });
-                                                        },
-                                                        child: Padding(
+                                            _hasChosenSuggestion = true;
+                                            _isIncorrect = false;
+                                            _isCorrect = false;
+                                            _selectedAnswer = suggestion;
+                                          });
+                                        },
+                                        child: Padding(
                                                           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14), // Justerad padding
                                                           child: Text( // Endast Text-widgeten kvar
-                                                            suggestion,
-                                                            style: GoogleFonts.ibmPlexMono(
+                                              suggestion,
+                                              style: GoogleFonts.ibmPlexMono(
                                                               fontSize: 15,
                                                               color: const Color(0xFF1F2937),
                                                               fontWeight: FontWeight.w600,
-                                                            ),
+                                              ),
                                                             maxLines: 1,
                                                             overflow: TextOverflow.ellipsis,
-                                                          ),
-                                                        ),
-                                                      );
-                                                    },
-                                                  ),
+                                          ),
+                                        ),
+                                      );
+                                    },
+                                  ),
                                                 )
                                               : _searchController.text.length >= 2
                                                   ? Padding(
@@ -632,28 +639,28 @@ class _QuizScreenState extends State<QuizScreen> {
                                                       ),
                                                     )
                                                   : const SizedBox.shrink(), // .shrink() är en const constructor
-                                    )
-                                  : const SizedBox.shrink(),
-                            ),
-                          ],
+                                )
+                              : const SizedBox.shrink(),
                         ),
-                      ),
+                      ],
                     ),
-
+                  ),
+                ),
+                
                     // *** BEHÅLLER SPACER HÄR ***
                     // Rätt/Fel-meddelande eller Spacer
                     if (_isCorrect || _isIncorrect || (_isViewingPreviousLevel && _shouldShowPreviousLevelMessage())) ...[
-                        const SizedBox(height: 24),
-                        Center(
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                            decoration: BoxDecoration(
+                  const SizedBox(height: 24),
+                  Center(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      decoration: BoxDecoration(
                               color: _isViewingPreviousLevel
                                   ? _getPreviousLevelColor()
                                   : _isCorrect
                                       ? Colors.green
                                       : const Color.fromARGB(255, 223, 102, 102),
-                              borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(12),
                               boxShadow: [
                                 BoxShadow(
                                   color: (_isViewingPreviousLevel
@@ -665,44 +672,44 @@ class _QuizScreenState extends State<QuizScreen> {
                                   offset: const Offset(0, 2),
                                 ),
                               ],
-                            ),
-                            child: Text(
+                      ),
+                      child: Text(
                               _isViewingPreviousLevel
                                   ? _getPreviousLevelMessage()
                                   : _isCorrect
-                                      ? (widget.isEnglish ? 'Correct!' : 'Rätt!')
-                                      : (widget.isEnglish ? 'Incorrect!' : 'Fel!'),
-                              style: GoogleFonts.ibmPlexMono(
-                                color: Colors.white,
+                            ? (widget.isEnglish ? 'Correct!' : 'Rätt!')
+                            : (widget.isEnglish ? 'Incorrect!' : 'Fel!'),
+                        style: GoogleFonts.ibmPlexMono(
+                          color: Colors.white,
                                 fontSize: 24,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ),
+                          fontWeight: FontWeight.w600,
                         ),
+                      ),
+                    ),
+                  ),
                         const Spacer(), // Spacer efter meddelandet
-                      ] else ...[
+                ] else ...[
                         const Spacer(), // Spacer när inget meddelande visas
-                      ],
-
+                ],
+                
 
                     // Knappar (ligger kvar längst ner tack vare Spacer)
-                    Row(
-                      children: [
+                Row(
+                  children: [
                         if (!_isIncorrect && !_isCorrect && !_isViewingPreviousLevel) ...[
                           // "Jag vet inte" button
                           Expanded(
                             child: Container(
-                              height: 56,
-                              decoration: BoxDecoration(
+                        height: 56,
+                        decoration: BoxDecoration(
                                 color: _newColor.withOpacity(0.12),
-                                borderRadius: BorderRadius.circular(16),
+                          borderRadius: BorderRadius.circular(16),
                                 border: Border.all(color: _newColor.withOpacity(0.25), width: 1.5),
-                              ),
+                          ),
                               child: Material( // Material är tillgänglig
-                                color: Colors.transparent,
-                                child: InkWell(
-                                  borderRadius: BorderRadius.circular(16),
+                          color: Colors.transparent,
+                          child: InkWell(
+                            borderRadius: BorderRadius.circular(16),
                                   onTap: () async {
                                     setState(() {
                                       _isIncorrect = false;
@@ -710,26 +717,26 @@ class _QuizScreenState extends State<QuizScreen> {
                                       _pressedIDontKnow = true;
                                     });
                                     await _saveLevelHistory();
-                                    _goToNextQuestion(context);
-                                  },
-                                  child: Center(
-                                    child: Text(
-                                      widget.isEnglish ? "I don't know" : "Jag vet inte",
+                              _goToNextQuestion(context);
+                            },
+                            child: Center(
+                              child: Text(
+                                widget.isEnglish ? "I don't know" : "Jag vet inte",
                                       style: GoogleFonts.ibmPlexMono(color: _newColor, fontSize: 16, fontWeight: FontWeight.w500),
-                                    ),
-                                  ),
                                 ),
                               ),
                             ),
                           ),
-                          const SizedBox(width: 16),
+                        ),
+                      ),
+                      const SizedBox(width: 16),
                           // "Gissa" button
-                          Expanded(
-                            child: Container(
-                              height: 56,
-                              decoration: BoxDecoration(
+                      Expanded(
+                          child: Container(
+                            height: 56,
+                            decoration: BoxDecoration(
                                 color: canGuess ? const Color(0xFF10B981) : const Color(0xFF6B7280),
-                                borderRadius: BorderRadius.circular(16),
+                              borderRadius: BorderRadius.circular(16),
                                 boxShadow: canGuess ? [BoxShadow(color: const Color(0xFF10B981).withOpacity(0.4), blurRadius: 12, offset: const Offset(0, 4))] : null,
                               ),
                               child: Material(
@@ -757,102 +764,102 @@ class _QuizScreenState extends State<QuizScreen> {
                                 color: _newColor,
                                 borderRadius: BorderRadius.circular(16),
                                 boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 8, offset: const Offset(0, 2))],
-                              ),
-                              child: Material(
-                                color: Colors.transparent,
-                                child: InkWell(
-                                  borderRadius: BorderRadius.circular(16),
-                                  onTap: () => _goToNextQuestion(context),
-                                  child: Center(
-                                    child: Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
+                            ),
+                            child: Material(
+                              color: Colors.transparent,
+                              child: InkWell(
+                                borderRadius: BorderRadius.circular(16),
+                                onTap: () => _goToNextQuestion(context),
+                                child: Center(
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
                                         Text(widget.totalQuestions >= _currentLevel + 1 // Fixat logik
                                             ? (widget.isEnglish ? 'Next question' : 'Nästa fråga')
                                             : (widget.isEnglish ? 'Finish & See Results' : 'Slutför och se resultat'),
                                           style: GoogleFonts.ibmPlexMono(color: Colors.black, fontSize: 16, fontWeight: FontWeight.w600)),
-                                        const SizedBox(width: 8),
+                                      const SizedBox(width: 8),
                                         const Icon(Icons.arrow_forward_rounded, color: Colors.black, size: 18),
                                       ],
-                                    ),
-                                  ),
                                 ),
                               ),
                             ),
-                          )
+                          ),
+                        ),
+                      )
                         // "Nästa fråga" knappen (rätt svar)
                         else if (_isCorrect && !_isViewingPreviousLevel)
-                          Expanded(
-                            child: Container(
+                      Expanded(
+                          child: Container(
                               height: 56, padding: const EdgeInsets.symmetric(horizontal: 24),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFF10B981),
-                                borderRadius: BorderRadius.circular(16),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF10B981),
+                              borderRadius: BorderRadius.circular(16),
                                 boxShadow: [BoxShadow(color: const Color(0xFF10B981).withOpacity(0.3), blurRadius: 12, offset: const Offset(0, 4))],
-                              ),
-                              child: Material(
-                                color: Colors.transparent,
-                                child: InkWell(
-                                  borderRadius: BorderRadius.circular(16),
-                                  onTap: () => _goToNextQuestion(context),
-                                  child: Center(
-                                    child: Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
+                            ),
+                            child: Material(
+                              color: Colors.transparent,
+                              child: InkWell(
+                                borderRadius: BorderRadius.circular(16),
+                                onTap: () => _goToNextQuestion(context),
+                                child: Center(
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
                                         Text(widget.totalQuestions >= _currentLevel + 1 // Fixat logik
                                             ? (widget.isEnglish ? 'Next question' : 'Nästa fråga')
                                             : (widget.isEnglish ? 'Finish & See Results' : 'Slutför och se resultat'),
                                           style: GoogleFonts.ibmPlexMono(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w600)),
-                                        const SizedBox(width: 8),
+                                      const SizedBox(width: 8),
                                         const Icon(Icons.arrow_forward_rounded, color: Colors.white, size: 18),
                                       ],
-                                    ),
-                                  ),
                                 ),
                               ),
                             ),
-                          )
+                          ),
+                        ),
+                      )
                         // "Back to current level" button
                         else if (_isViewingPreviousLevel)
                           Expanded(
                             child: Container(
-                              height: 56,
-                              decoration: BoxDecoration(
+                        height: 56,
+                        decoration: BoxDecoration(
                                 color: _newColor.withOpacity(0.12),
-                                borderRadius: BorderRadius.circular(16),
+                          borderRadius: BorderRadius.circular(16),
                                 border: Border.all(color: _newColor.withOpacity(0.25), width: 1.5),
-                              ),
-                              child: Material(
-                                color: Colors.transparent,
-                                child: InkWell(
-                                  borderRadius: BorderRadius.circular(16),
+                        ),
+                        child: Material(
+                          color: Colors.transparent,
+                          child: InkWell(
+                            borderRadius: BorderRadius.circular(16),
                                   onTap: () => _goToLevel(_maxReachedLevel),
-                                  child: Center(
+                            child: Center(
                                     child: Row(
                                       mainAxisSize: MainAxisSize.min,
                                       children: [
                                         Text(
                                           widget.isEnglish ? 'Back to Level $_maxReachedLevel' : 'Tillbaka till Nivå $_maxReachedLevel',
-                                          style: GoogleFonts.ibmPlexMono(
+                                style: GoogleFonts.ibmPlexMono(
                                             color: _newColor, fontSize: 16, fontWeight: FontWeight.w600
                                           ),
                                         ),
                                         const SizedBox(width: 8),
                                         Icon(Icons.arrow_forward_rounded, color: _newColor, size: 18),
                                       ],
-                                    ),
-                                  ),
                                 ),
                               ),
                             ),
                           ),
-                      ],
-                    ),
-                    const SizedBox(height: 16), // Padding längst ner
+                        ),
+                      ),
                   ],
                 ),
-              ),
+                    const SizedBox(height: 16), // Padding längst ner
+              ],
             ),
+          ),
+        ),
           ),
           // Confetti widget
           Align( // Align är tillgänglig
@@ -897,7 +904,7 @@ class _QuizScreenState extends State<QuizScreen> {
     final answer = _searchController.text.trim().toLowerCase();
     final correctAnswer = widget.animal.name.toLowerCase();
     final correctSciName = widget.animal.scientificName.toLowerCase();
-
+    
     if (answer == correctAnswer || (correctSciName.isNotEmpty && answer == correctSciName)) {
       setState(() {
         _isCorrect = true; _isIncorrect = false; _selectedAnswer = _searchController.text.trim();
@@ -905,8 +912,12 @@ class _QuizScreenState extends State<QuizScreen> {
         _searchFocusNode.unfocus();
       });
       _confettiController.play();
-      // Gå direkt till resultat efter confetti (eller efter kort delay om du vill)
-      _goToResultScreen(context); // Går till resultat direkt vid rätt svar
+      // Add a delay to let the user see the confetti and correct answer
+      Future.delayed(const Duration(milliseconds: 2000), () {
+        if (mounted) {
+          _goToResultScreen(context);
+        }
+      });
     } else {
       setState(() {
         _isIncorrect = true; _isCorrect = false;
@@ -918,19 +929,25 @@ class _QuizScreenState extends State<QuizScreen> {
   }
   
   void _goToResultScreen(BuildContext context) {
+    // Calculate total time
+    final int totalTimeMs = _quizStartTime != null 
+        ? DateTime.now().difference(_quizStartTime!).inMilliseconds
+        : 0;
+    
     Navigator.of(context).pushReplacement(
-      MaterialPageRoute(
-        builder: (_) => QuizResultScreen(
-          animal: widget.animal,
-          isEnglish: widget.isEnglish,
-          isCorrect: _isCorrect,
+        MaterialPageRoute(
+          builder: (_) => QuizResultScreen(
+            animal: widget.animal,
+            isEnglish: widget.isEnglish,
+            isCorrect: _isCorrect,
           hintIndex: _isCorrect ? _currentLevel : widget.totalQuestions, // Skicka med nivån man klarade på
           totalHints: widget.totalQuestions,
           aiClues: _aiClues,
+          totalTimeMs: totalTimeMs,
+          ),
         ),
-      ),
-    );
-  }
+      );
+    }
 
  void _goToNextQuestion(BuildContext context) {
     final int nextIndex = _currentLevel + 1;
@@ -943,6 +960,11 @@ class _QuizScreenState extends State<QuizScreen> {
 
     // Om det var sista frågan (och svaret var fel eller "vet inte")
     if (nextIndex > widget.totalQuestions) {
+       // User failed on the last question, mark as not solved
+       setState(() {
+         _isCorrect = false;
+         _isIncorrect = false; // Clear incorrect state for final result
+       });
        _goToResultScreen(context); // Gå till resultat ändå
     } else {
       // Gå till nästa fråga
@@ -1013,7 +1035,7 @@ class _QuizScreenState extends State<QuizScreen> {
 
       setState(() {
         if (pressedIDontKnow) {
-          _searchController.text = widget.isEnglish ? '<Skipped>' : '<Hoppade över>'; // Tydligare text
+          _searchController.text = widget.isEnglish ? '<Skipped>' : '<Svarade inte>'; // Tydligare text
         } else {
           _searchController.text = answer;
         }
