@@ -189,21 +189,28 @@ class _QuizResultScreenState extends State<QuizResultScreen> {
     );
   }
 
-  void _showCluesDialog(BuildContext context) {
+void _showCluesDialog(BuildContext context) {
+    // Definiera färgerna från bilden för enklare återanvändning
+    const Color dialogBackgroundColor = Color(0xFF1C1C1E); // Mörkgrå bakgrund
+    const Color primaryTextColor = Colors.white; // Vit text för rubriker
+    const Color secondaryTextColor = Color(0xFFEBEBF5); // Ljusgrå text för beskrivning
+
     showDialog(
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          backgroundColor: const Color(0xFFE7EFE7),
+          backgroundColor: dialogBackgroundColor,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
           ),
+          
+          // ÄNDRING: Titeln är nu "Ledtrådar"
           title: Text(
-            widget.isEnglish ? 'AI Clues' : 'AI-ledtrådar',
+            widget.isEnglish ? 'Clues' : 'Ledtrådar',
             style: GoogleFonts.ibmPlexMono(
               fontSize: 20,
               fontWeight: FontWeight.w600,
-              color: Colors.black,
+              color: primaryTextColor,
             ),
           ),
           content: SingleChildScrollView(
@@ -211,69 +218,39 @@ class _QuizResultScreenState extends State<QuizResultScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text(
-                  widget.animal.name,
-                  style: GoogleFonts.ibmPlexMono(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.black,
-                  ),
-                ),
-                if (widget.animal.scientificName.isNotEmpty) ...[
-                  const SizedBox(height: 4),
-                  Text(
-                    widget.animal.scientificName,
-                    style: GoogleFonts.ibmPlexMono(
-                      fontSize: 14,
-                      color: Colors.black87,
-                      fontStyle: FontStyle.italic,
-                    ),
-                  ),
-                ],
-                const SizedBox(height: 16),
-                // Display AI clues in the same style as the game
+                // Loopar igenom AI-ledtrådarna och bygger listan
                 ...widget.aiClues.asMap().entries.map((entry) {
                   int index = entry.key;
                   String hint = entry.value;
-                  return Container(
-                    margin: const EdgeInsets.only(bottom: 16),
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.black12, width: 1),
-                    ),
-                    child: Row(
+
+                  // ÄNDRING: Row och Icon är borttagna.
+                  // Vi har nu en Padding direkt runt en Column.
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 24.0), // Lite mer utrymme mellan ledtrådarna
+                    child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Container(
-                          width: 32,
-                          height: 32,
-                          decoration: BoxDecoration(
-                            color: Colors.black,
-                            shape: BoxShape.circle,
-                          ),
-                          child: Center(
-                            child: Text(
-                              '${index + 1}',
-                              style: GoogleFonts.ibmPlexMono(
-                                color: Colors.white,
-                                fontSize: 16,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
+                        // ÄNDRING: Rubriken är större (fontSize: 18)
+                        Text(
+                          widget.isEnglish
+                              ? 'Clue ${index + 1}'
+                              : 'Ledtråd ${index + 1}',
+                          style: GoogleFonts.ibmPlexMono(
+                            fontSize: 18, // Ändrad från 16
+                            fontWeight: FontWeight.w600,
+                            color: primaryTextColor,
                           ),
                         ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: Text(
-                            hint,
-                            style: GoogleFonts.ibmPlexMono(
-                              fontSize: 16,
-                              color: Colors.black,
-                              height: 1.4,
-                              fontWeight: FontWeight.w400,
-                            ),
+                        const SizedBox(height: 6), // Lite mer avstånd till texten under
+                        
+                        // Beskrivning (själva ledtråden)
+                        Text(
+                          hint,
+                          style: GoogleFonts.ibmPlexMono(
+                            fontSize: 14,
+                            color: secondaryTextColor.withOpacity(0.7), // Ljusare grå
+                            height: 1.4,
+                            fontWeight: FontWeight.w400,
                           ),
                         ),
                       ],
@@ -287,10 +264,11 @@ class _QuizResultScreenState extends State<QuizResultScreen> {
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
               child: Text(
-                widget.isEnglish ? 'Close' : 'Stäng',
+                'OK',
                 style: GoogleFonts.ibmPlexMono(
-                  color: Colors.blue,
+                  color: primaryTextColor.withOpacity(0.9),
                   fontWeight: FontWeight.w600,
+                  fontSize: 16,
                 ),
               ),
             ),
