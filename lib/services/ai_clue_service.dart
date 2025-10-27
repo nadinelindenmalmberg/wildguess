@@ -6,7 +6,7 @@ import '../core/constants.dart';
 
 class AiClueService {
   // Use your Node.js backend server (secure, cached, rate-limited)
-  static const String _backendUrl = 'http://127.0.0.1:3001';
+  static const String _backendUrl = 'http://127.0.0.1:3000';
   
   final http.Client _client;
   
