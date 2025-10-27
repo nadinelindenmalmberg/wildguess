@@ -189,10 +189,12 @@ class _QuizResultScreenState extends State<QuizResultScreen> {
     );
   }
 
-  void _showCluesDialog(BuildContext context) {
+void _showCluesDialog(BuildContext context) {
+    // Definiera färgerna från bilden för enklare återanvändning
     const Color dialogBackgroundColor = Color(0xFF1C1C1E); // Mörkgrå bakgrund
     const Color primaryTextColor = Colors.white; // Vit text för rubriker
     const Color secondaryTextColor = Color(0xFFEBEBF5); // Ljusgrå text för beskrivning
+
     showDialog(
       context: context,
       builder: (BuildContext context) {
@@ -201,6 +203,8 @@ class _QuizResultScreenState extends State<QuizResultScreen> {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
           ),
+          
+          // ÄNDRING: Titeln är nu "Ledtrådar"
           title: Text(
             widget.isEnglish ? 'Clues' : 'Ledtrådar',
             style: GoogleFonts.ibmPlexMono(
@@ -214,35 +218,19 @@ class _QuizResultScreenState extends State<QuizResultScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text(
-                  widget.animal.name,
-                  style: GoogleFonts.ibmPlexMono(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.black,
-                  ),
-                ),
-                if (widget.animal.scientificName.isNotEmpty) ...[
-                  const SizedBox(height: 4),
-                  Text(
-                    widget.animal.scientificName,
-                    style: GoogleFonts.ibmPlexMono(
-                      fontSize: 14,
-                      color: Colors.black87,
-                      fontStyle: FontStyle.italic,
-                    ),
-                  ),
-                ],
-                const SizedBox(height: 16),
-                // Display AI clues in the same style as the game
+                // Loopar igenom AI-ledtrådarna och bygger listan
                 ...widget.aiClues.asMap().entries.map((entry) {
                   int index = entry.key;
                   String hint = entry.value;
+
+                  // ÄNDRING: Row och Icon är borttagna.
+                  // Vi har nu en Padding direkt runt en Column.
                   return Padding(
                     padding: const EdgeInsets.only(bottom: 24.0), // Lite mer utrymme mellan ledtrådarna
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        // ÄNDRING: Rubriken är större (fontSize: 18)
                         Text(
                           widget.isEnglish
                               ? 'Clue ${index + 1}'
@@ -250,11 +238,12 @@ class _QuizResultScreenState extends State<QuizResultScreen> {
                           style: GoogleFonts.ibmPlexMono(
                             fontSize: 18, // Ändrad från 16
                             fontWeight: FontWeight.w600,
-
+                            color: primaryTextColor,
                           ),
                         ),
                         const SizedBox(height: 6), // Lite mer avstånd till texten under
                         
+                        // Beskrivning (själva ledtråden)
                         Text(
                           hint,
                           style: GoogleFonts.ibmPlexMono(
@@ -278,11 +267,8 @@ class _QuizResultScreenState extends State<QuizResultScreen> {
                 'OK',
                 style: GoogleFonts.ibmPlexMono(
                   color: primaryTextColor.withOpacity(0.9),
-
                   fontWeight: FontWeight.w600,
-                                    fontSize: 16,
-
-
+                  fontSize: 16,
                 ),
               ),
             ),
