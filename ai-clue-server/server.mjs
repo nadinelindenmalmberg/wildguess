@@ -131,10 +131,61 @@ Return ONLY a JSON array of 5 strings.
   }
 });
 
+app.post('/facts', async (req, res) => {
+  try {
+    const { animalName, scientificName, description, isEnglish = false } = req.body || {};
+    if (!animalName || typeof animalName !== 'string') return res.status(400).json({ error: 'animalName required' });
+
+    const language = isEnglish ? 'English' : 'Swedish';
+    // Lägg till caching här om önskvärt, liknande /clues
+
+    const system = [
+      'You generate 3-5 interesting and verifiable facts about a specific animal for a wildlife guessing game result screen.',
+      'Rules:',
+      '- Output STRICT JSON matching this schema: {"facts": ["string", "string", "string", ...]}',
+      `- Language: ${language}`,
+      '- Facts should be interesting, concise, and educational.',
+      '- You CAN and SHOULD mention the animal\'s name.',
+      '- Focus on unique characteristics, behavior, habitat, conservation status, or surprising details.',
+      '- Avoid generic statements.',
+    ].join('\n');
+
+    const user = `
+Generate 3-5 interesting facts about this animal:
+- Name: ${animalName}
+- Scientific Name: ${scientificName || 'Unknown'}
+- Description: ${description || 'No description'}
+
+Return ONLY a JSON array of 3-5 strings.
+`.trim();
+
+    const completion = await openai.chat.completions.create({
+      model: 'gpt-4o-mini', // Eller annan modell
+      temperature: 0.6,
+      response_format: { type: 'json_object' },
+      messages: [
+        { role: 'system', content: system },
+        { role: 'user', content: user },
+      ],
+      max_tokens: 300,
+    });
+
+    const json = JSON.parse(completion.choices[0].message.content);
+    const facts = json.facts;
+
+    // Spara i cache om implementerat
+    res.json({ facts });
+  } catch (err) {
+    console.error('facts error', err);
+    res.status(500).json({ error: 'Failed to generate facts' });
+  }
+});
+
 app.listen(port, '0.0.0.0', () => {
   console.log(`Server running on http://localhost:${port}`);
   console.log('Available endpoints:');
   console.log('  GET  /health - Health check');
   console.log('  POST /chat   - Generic chat endpoint');
   console.log('  POST /clues  - Animal clue generation');
+  console.log(' POST /facts - Animal fact generation');
 });
