@@ -110,56 +110,125 @@ Future<Map<String, dynamic>> getMyRank({String? animalForTesting}) async {
 class StatisticsService {
   static const String _dailyStatsKey = 'daily_statistics';
   
-  /// Get daily statistics for a specific hint index
-  static Future<Map<String, dynamic>> getDailyStatistics(int hintIndex) async {
+  /// Get global daily statistics from Supabase
+  static Future<Map<String, dynamic>> _getGlobalDailyStatistics() async {
     try {
-      final history = await HistoryService.getGameHistory();
+      await ensureAnonSession();
+      final nowUtc = DateTime.now().toUtc();
+      final dayKey = _dayKeyDaily(nowUtc);
       
-      // Get last 30 days of games for better sample size
-      final thirtyDaysAgo = DateTime.now().subtract(Duration(days: 30));
-      final recentGames = history.where((game) {
-        final gameDate = DateTime.parse(game['completed_at']);
-        return gameDate.isAfter(thirtyDaysAgo);
-      }).toList();
+      print('Fetching global statistics for dayKey: $dayKey');
       
-      // Calculate hint distribution
-      final hintDistribution = <int, int>{};
-      for (int i = 1; i <= 5; i++) {
-        hintDistribution[i] = recentGames.where((game) => 
-          game['question_index'] == i && game['is_correct'] == true).length;
+      // Try to get global statistics for today
+      // First try the new RPC function
+      try {
+        final res = await supa.rpc('get_daily_statistics', params: {
+          'p_day_key': dayKey,
+        });
+        
+        print('RPC response: $res');
+        
+        if (res is Map<String, dynamic> && res.isNotEmpty) {
+          final hintDistribution = <int, int>{};
+          final failedCount = res['failed_count'] as int? ?? 0;
+          final totalGames = res['total_games'] as int? ?? 0;
+          
+          // Parse hint distribution from the response
+          for (int i = 1; i <= 5; i++) {
+            hintDistribution[i] = res['hint_$i'] as int? ?? 0;
+          }
+          
+          // Calculate percentages
+          final hintPercentages = <int, int>{};
+          for (int i = 1; i <= 5; i++) {
+            hintPercentages[i] = totalGames > 0 ? 
+              ((hintDistribution[i] ?? 0) / totalGames * 100).round() : 0;
+          }
+          
+          print('RPC stats - totalGames: $totalGames, hintPercentages: $hintPercentages');
+          
+          return {
+            'hintDistribution': hintPercentages,
+            'failedCount': failedCount,
+            'totalGames': totalGames,
+            'isLocal': false,
+            'isDefault': false,
+            'isGlobal': true,
+          };
+        }
+      } catch (rpcError) {
+        print('RPC function not available, trying alternative approach: $rpcError');
       }
       
-      // Count failed attempts (is_correct = false)
-      final failedCount = recentGames.where((game) => 
-        game['is_correct'] == false).length;
+      // Fallback: try to get data from the scores table directly
+      print('Trying direct query to daily_scores table...');
+      final scoresRes = await supa
+          .from('daily_scores')
+          .select('attempts, solved')
+          .like('day_key', '$dayKey%');
       
-      final totalGames = recentGames.length;
+      print('Direct query response: $scoresRes');
       
-      // Calculate percentage based on success/failure (same logic as global stats)
-      // This will be overridden in the UI based on isCorrect, but we need it for fallback
-      final currentHintCount = hintDistribution[hintIndex] ?? 0;
-      final percentage = totalGames > 0 ? (currentHintCount / totalGames * 100).round() : 0;
-      
-      // If we don't have enough data, use some realistic defaults
-      if (totalGames < 5) {
-        final defaultDistribution = {1: 8, 2: 11, 3: 52, 4: 20, 5: 9};
+      if (scoresRes is List && scoresRes.isNotEmpty) {
+        final scores = scoresRes.cast<Map<String, dynamic>>();
+        final totalGames = scores.length;
+        
+        print('Found $totalGames scores in daily_scores table');
+        
+        // Calculate hint distribution
+        final hintDistribution = <int, int>{};
+        for (int i = 1; i <= 5; i++) {
+          hintDistribution[i] = scores.where((score) => 
+            score['attempts'] == i && score['solved'] == true).length;
+        }
+        
+        final failedCount = scores.where((score) => score['solved'] == false).length;
+        
+        // Calculate percentages
+        final hintPercentages = <int, int>{};
+        for (int i = 1; i <= 5; i++) {
+          hintPercentages[i] = totalGames > 0 ? 
+            ((hintDistribution[i] ?? 0) / totalGames * 100).round() : 0;
+        }
+        
+        print('Direct query stats - totalGames: $totalGames, hintPercentages: $hintPercentages');
+        
         return {
-          'percentage': defaultDistribution[hintIndex] ?? 0,
-          'totalGames': totalGames,
-          'hintDistribution': defaultDistribution,
+          'hintDistribution': hintPercentages,
           'failedCount': failedCount,
-          'isLocal': true,
-          'isDefault': true,
+          'totalGames': totalGames,
+          'isLocal': false,
+          'isDefault': false,
+          'isGlobal': true,
         };
       }
       
+      print('No data found in daily_scores table for dayKey: $dayKey');
+      return {};
+    } catch (e) {
+      print('Error fetching global daily statistics: $e');
+      return {};
+    }
+  }
+  
+  /// Get daily statistics for a specific hint index
+  static Future<Map<String, dynamic>> getDailyStatistics(int hintIndex) async {
+    try {
+      // First try to get global statistics from Supabase
+      final globalStats = await _getGlobalDailyStatistics();
+      if (globalStats.isNotEmpty) {
+        return globalStats;
+      }
+      
+      // If no global data available, return default statistics
+      final defaultDistribution = {1: 8, 2: 11, 3: 52, 4: 20, 5: 9};
       return {
-        'percentage': percentage,
-        'totalGames': totalGames,
-        'hintDistribution': hintDistribution,
-        'failedCount': failedCount,
-        'isLocal': true,
-        'isDefault': false,
+        'percentage': defaultDistribution[hintIndex] ?? 0,
+        'totalGames': 100, // Show some realistic total
+        'hintDistribution': defaultDistribution,
+        'failedCount': 15, // Show some failed attempts
+        'isLocal': false,
+        'isDefault': true,
       };
     } catch (e) {
       print('Error calculating daily statistics: $e');
@@ -170,7 +239,7 @@ class StatisticsService {
         'totalGames': 0,
         'hintDistribution': defaultDistribution,
         'failedCount': 0,
-        'isLocal': true,
+        'isLocal': false,
         'isDefault': true,
       };
     }
@@ -179,42 +248,27 @@ class StatisticsService {
   /// Get hint distribution for bar chart
   static Future<List<Map<String, dynamic>>> getHintDistribution() async {
     try {
-      final history = await HistoryService.getGameHistory();
-      
-      // Get last 30 days of games
-      final thirtyDaysAgo = DateTime.now().subtract(Duration(days: 30));
-      final recentGames = history.where((game) {
-        final gameDate = DateTime.parse(game['completed_at']);
-        return gameDate.isAfter(thirtyDaysAgo);
-      }).toList();
-      
-      final totalGames = recentGames.length;
-      final distribution = <Map<String, dynamic>>[];
-      
-      for (int i = 1; i <= 5; i++) {
-        final count = recentGames.where((game) => 
-          game['question_index'] == i).length;
-        final percentage = totalGames > 0 ? (count / totalGames * 100).round() : 0;
-        
-        distribution.add({
-          'hint': i,
-          'count': count,
-          'percentage': percentage,
-        });
-      }
-      
-      // If not enough data, return default distribution
-      if (totalGames < 5) {
+      // Try to get global statistics first
+      final globalStats = await _getGlobalDailyStatistics();
+      if (globalStats.isNotEmpty && globalStats.containsKey('hintDistribution')) {
+        final hintDist = globalStats['hintDistribution'] as Map<int, int>;
         return [
-          {'hint': 1, 'count': 8, 'percentage': 8},
-          {'hint': 2, 'count': 11, 'percentage': 11},
-          {'hint': 3, 'count': 52, 'percentage': 52},
-          {'hint': 4, 'count': 20, 'percentage': 20},
-          {'hint': 5, 'count': 9, 'percentage': 9},
+          {'hint': 1, 'count': hintDist[1] ?? 0, 'percentage': hintDist[1] ?? 0},
+          {'hint': 2, 'count': hintDist[2] ?? 0, 'percentage': hintDist[2] ?? 0},
+          {'hint': 3, 'count': hintDist[3] ?? 0, 'percentage': hintDist[3] ?? 0},
+          {'hint': 4, 'count': hintDist[4] ?? 0, 'percentage': hintDist[4] ?? 0},
+          {'hint': 5, 'count': hintDist[5] ?? 0, 'percentage': hintDist[5] ?? 0},
         ];
       }
       
-      return distribution;
+      // Return default distribution if no global data
+      return [
+        {'hint': 1, 'count': 8, 'percentage': 8},
+        {'hint': 2, 'count': 11, 'percentage': 11},
+        {'hint': 3, 'count': 52, 'percentage': 52},
+        {'hint': 4, 'count': 20, 'percentage': 20},
+        {'hint': 5, 'count': 9, 'percentage': 9},
+      ];
     } catch (e) {
       print('Error getting hint distribution: $e');
       // Return default distribution
@@ -228,36 +282,59 @@ class StatisticsService {
     }
   }
   
-  /// Get today's statistics
+  /// Get today's statistics from aggregate_stats table
   static Future<Map<String, dynamic>> getTodayStatistics() async {
     try {
-      final history = await HistoryService.getGameHistory();
-      final today = DateTime.now();
+      await ensureAnonSession();
+      final userId = supa.auth.currentUser!.id;
       
-      final todayGames = history.where((game) {
-        final gameDate = DateTime.parse(game['completed_at']);
-        return gameDate.year == today.year && 
-               gameDate.month == today.month && 
-               gameDate.day == today.day;
-      }).toList();
+      // Get user's aggregate stats
+      final response = await supa
+          .from('aggregate_stats')
+          .select('*')
+          .eq('user_id', userId)
+          .single();
       
-      final correctToday = todayGames.where((game) => game['is_correct'] == true).length;
-      final totalToday = todayGames.length;
-      final accuracy = totalToday > 0 ? (correctToday / totalToday * 100).round() : 0;
+      if (response != null) {
+        final gamesPlayed = response['games_played'] as int? ?? 0;
+        final totalSolved = response['total_solved'] as int? ?? 0;
+        final currentStreak = response['current_streak'] as int? ?? 0;
+        final maxStreak = response['max_streak'] as int? ?? 0;
+        final avgTimeMs = response['avg_time_ms'] as int? ?? 0;
+        final bestTimeMs = response['best_time_ms'] as int? ?? 0;
+        
+        final accuracy = gamesPlayed > 0 ? (totalSolved / gamesPlayed * 100).round() : 0;
+        
+        return {
+          'gamesPlayed': gamesPlayed,
+          'gamesCorrect': totalSolved,
+          'accuracy': accuracy,
+          'streak': currentStreak,
+          'maxStreak': maxStreak,
+          'avgTimeMs': avgTimeMs,
+          'bestTimeMs': bestTimeMs,
+        };
+      }
       
-      return {
-        'gamesPlayed': totalToday,
-        'gamesCorrect': correctToday,
-        'accuracy': accuracy,
-        'streak': await _calculateCurrentStreak(),
-      };
-    } catch (e) {
-      print('Error getting today statistics: $e');
       return {
         'gamesPlayed': 0,
         'gamesCorrect': 0,
         'accuracy': 0,
         'streak': 0,
+        'maxStreak': 0,
+        'avgTimeMs': 0,
+        'bestTimeMs': 0,
+      };
+    } catch (e) {
+      print('Error getting today statistics from aggregate_stats: $e');
+      return {
+        'gamesPlayed': 0,
+        'gamesCorrect': 0,
+        'accuracy': 0,
+        'streak': 0,
+        'maxStreak': 0,
+        'avgTimeMs': 0,
+        'bestTimeMs': 0,
       };
     }
   }

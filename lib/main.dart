@@ -5,6 +5,7 @@ import 'screens/home_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'secrets.dart';
+import 'services/image_service.dart';
 
 
 Future<void> main() async {
@@ -13,6 +14,10 @@ Future<void> main() async {
     url: supabaseUrl,
     anonKey: supabaseAnonKey,
   );
+  
+  // Clear any existing image cache to ensure fresh images
+  ImageService.clearCache();
+  
   runApp(const WildGuessApp());
 }
 

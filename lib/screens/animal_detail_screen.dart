@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../models/animal_data.dart'; // Import AnimalData
 import '../widgets/animal_image_widget.dart'; // Import AnimalImageWidget
 import '../services/ai_clue_service.dart'; // Import AI service
+import '../utils/translation_extension.dart'; // Import translation extension
 
 class AnimalDetailScreen extends StatefulWidget {
   final AnimalData animal;
@@ -105,7 +106,7 @@ class _AnimalDetailScreenState extends State<AnimalDetailScreen> {
                   if (widget.animal.imageUrl.isNotEmpty)
                     AnimalImageWidget(
                       imageUrl: widget.animal.imageUrl,
-                      animalName: widget.animal.name,
+                      animalName: widget.animal.name.getTranslatedAnimalName(widget.isEnglish),
                       width: double.infinity,
                       height: 250, // Adjust height as needed
                       fit: BoxFit.cover,
@@ -125,7 +126,9 @@ class _AnimalDetailScreenState extends State<AnimalDetailScreen> {
 
                   // Animal Name (ensure text color is black)
                   Text(
-                    widget.animal.name.isNotEmpty ? widget.animal.name : 'Unknown Animal',
+                    widget.animal.name.isNotEmpty 
+                      ? widget.animal.name.getTranslatedAnimalName(widget.isEnglish)
+                      : (widget.isEnglish ? 'Unknown Animal' : 'Okänt Djur'),
                     style: GoogleFonts.ibmPlexMono(
                       fontSize: 28,
                       fontWeight: FontWeight.w700,

@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../models/animal_data.dart';
 import '../services/ai_clue_service.dart';
 import '../services/api_service.dart';
+import '../core/theme.dart';
 import 'quiz_result_screen.dart';
 import 'home_screen.dart';
 import 'package:confetti/confetti.dart';
@@ -353,7 +354,7 @@ class _QuizScreenState extends State<QuizScreen> {
                     ),
                   ],
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 3),
                 
                     // Frågetitel
                     Center( // Center är tillgänglig

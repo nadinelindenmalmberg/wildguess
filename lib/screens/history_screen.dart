@@ -4,6 +4,7 @@ import '../models/animal_data.dart'; // Import AnimalData
 import '../services/history_service.dart';
 import 'animal_detail_screen.dart'; // Import the new detail screen
 import '../widgets/animal_image_widget.dart'; // Import AnimalImageWidget
+import '../utils/translation_extension.dart'; // Import translation extension
 
 
 class HistoryScreen extends StatefulWidget {
@@ -365,7 +366,7 @@ class NewHistoryAnimalCard extends StatelessWidget {
              // Animal Image or Placeholder
              AnimalImageWidget( // Use the reusable image widget
                  imageUrl: animal.imageUrl,
-                 animalName: animal.name,
+                 animalName: animal.name.getTranslatedAnimalName(isEnglish),
                  width: double.infinity,
                  height: 110, // Slightly smaller height for list view
                  fit: BoxFit.cover,
@@ -385,7 +386,9 @@ class NewHistoryAnimalCard extends StatelessWidget {
                        crossAxisAlignment: CrossAxisAlignment.start,
                        children: [
                          Text(
-                           animal.name.isNotEmpty ? animal.name : (isEnglish ? 'Unknown Animal' : 'Okänt Djur'),
+                           animal.name.isNotEmpty 
+                             ? animal.name.getTranslatedAnimalName(isEnglish)
+                             : (isEnglish ? 'Unknown Animal' : 'Okänt Djur'),
                            style: GoogleFonts.ibmPlexMono(
                              fontSize: 18,
                              fontWeight: FontWeight.w600,

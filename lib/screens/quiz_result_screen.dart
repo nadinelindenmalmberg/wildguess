@@ -5,6 +5,8 @@ import '../services/history_service.dart';
 import 'home_screen.dart';
 import '../services/ai_clue_service.dart';
 import '../services/statistics_service.dart';
+import '../utils/translation_extension.dart';
+import '../core/theme.dart';
 
 class QuizResultScreen extends StatefulWidget {
   final AnimalData animal;
@@ -63,8 +65,27 @@ class _QuizResultScreenState extends State<QuizResultScreen> {
         totalQuestions: widget.totalHints,
         isCorrect: widget.isCorrect,
       );
+      
+      // Also submit score to Supabase for global statistics
+      await _submitScoreToSupabase();
     } catch (e) {
       print('Error saving game history: $e');
+    }
+  }
+  
+  Future<void> _submitScoreToSupabase() async {
+    try {
+      // Use the total time from the widget
+      final timeMs = widget.totalTimeMs;
+      
+      await submitScore(
+        attempts: widget.hintIndex,
+        solved: widget.isCorrect,
+        timeMs: timeMs,
+        animalName: widget.animal.scientificName,
+      );
+    } catch (e) {
+      print('Error submitting score to Supabase: $e');
     }
   }
 
@@ -117,12 +138,12 @@ class _QuizResultScreenState extends State<QuizResultScreen> {
     if (_dailyStats.isEmpty) {
       if (widget.isCorrect) {
         return widget.isEnglish
-            ? "You and 52% of other players solved today's animal on the ${widget.hintIndex}rd try!"
-            : "Du och 52% av andra spelare löste dagens djur på ${widget.hintIndex}:e försöket!";
+            ? "You solved today's animal on the ${widget.hintIndex}rd try!"
+            : "Du löste dagens djur på ${widget.hintIndex}:e försöket!";
       } else {
         return widget.isEnglish
-            ? "You and 10% of other players didn't solve today's animal!"
-            : "Du och 10% av andra spelare löste inte dagens djur!";
+            ? "You didn't solve today's animal!"
+            : "Du löste inte dagens djur!";
       }
     }
 
@@ -141,25 +162,41 @@ class _QuizResultScreenState extends State<QuizResultScreen> {
             : "Du och $percentage% av andra spelare löste inte dagens djur!";
       }
     } else {
+      final playerText = totalGames == 1 ? 'player' : 'players';
+      final spelareText = totalGames == 1 ? 'spelare' : 'spelare';
+      
+      // Special case: if only 1 player total, don't mention "other players"
+      if (totalGames == 1) {
+        if (widget.isCorrect) {
+          return widget.isEnglish
+              ? "You solved today's animal on the ${widget.hintIndex}rd try! (1 $playerText)"
+              : "Du löste dagens djur på ${widget.hintIndex}:e försöket! (1 $spelareText)";
+        } else {
+          return widget.isEnglish
+              ? "You didn't solve today's animal! (1 $playerText)"
+              : "Du löste inte dagens djur! (1 $spelareText)";
+        }
+      }
+      
       if (totalGames < 5) {
         if (widget.isCorrect) {
           return widget.isEnglish
-              ? "You and $percentage% of other players solved today's animal on the ${widget.hintIndex}rd try! ($totalGames players)"
-              : "Du och $percentage% av andra spelare löste dagens djur på ${widget.hintIndex}:e försöket! ($totalGames spelare)";
+              ? "You and $percentage% of other players solved today's animal on the ${widget.hintIndex}rd try! ($totalGames $playerText)"
+              : "Du och $percentage% av andra spelare löste dagens djur på ${widget.hintIndex}:e försöket! ($totalGames $spelareText)";
         } else {
           return widget.isEnglish
-              ? "You and $percentage% of other players didn't solve today's animal! ($totalGames players)"
-              : "Du och $percentage% av andra spelare löste inte dagens djur! ($totalGames spelare)";
+              ? "You and $percentage% of other players didn't solve today's animal! ($totalGames $playerText)"
+              : "Du och $percentage% av andra spelare löste inte dagens djur! ($totalGames $spelareText)";
         }
       } else {
         if (widget.isCorrect) {
           return widget.isEnglish
-              ? "You and $percentage% of other players solved today's animal on the ${widget.hintIndex}rd try! ($totalGames players)"
-              : "Du och $percentage% av andra spelare löste dagens djur på ${widget.hintIndex}:e försöket! ($totalGames spelare)";
+              ? "You and $percentage% of other players solved today's animal on the ${widget.hintIndex}rd try! ($totalGames $playerText)"
+              : "Du och $percentage% av andra spelare löste dagens djur på ${widget.hintIndex}:e försöket! ($totalGames $spelareText)";
         } else {
           return widget.isEnglish
-              ? "You and $percentage% of other players didn't solve today's animal! ($totalGames players)"
-              : "Du och $percentage% av andra spelare löste inte dagens djur! ($totalGames spelare)";
+              ? "You and $percentage% of other players didn't solve today's animal! ($totalGames $playerText)"
+              : "Du och $percentage% av andra spelare löste inte dagens djur! ($totalGames $spelareText)";
         }
       }
     }
@@ -169,11 +206,17 @@ class _QuizResultScreenState extends State<QuizResultScreen> {
     if (_dailyStats.isEmpty) {
       return Column(
         children: [
-          _StatsRow(attempt: '1', percent: 8, isEnglish: widget.isEnglish),
-          _StatsRow(attempt: '2', percent: 11, isEnglish: widget.isEnglish),
-          _StatsRow(attempt: '3', percent: 52, highlight: true, isEnglish: widget.isEnglish),
-          _StatsRow(attempt: '4', percent: 20, isEnglish: widget.isEnglish),
-          _StatsRow(attempt: '5', percent: 9, isEnglish: widget.isEnglish),
+          Text(
+            widget.isEnglish ? 'Loading statistics...' : 'Laddar statistik...',
+            style: GoogleFonts.ibmPlexMono(
+              fontSize: 14,
+              color: Colors.white70,
+            ),
+          ),
+          const SizedBox(height: 20),
+          // Show loading bars
+          for (int i = 1; i <= 5; i++)
+            _StatsRow(attempt: i.toString(), percent: 0, isEnglish: widget.isEnglish),
           _StatsRow(attempt: 'X', percent: 0, isEnglish: widget.isEnglish),
         ],
       );
@@ -342,7 +385,7 @@ class _QuizResultScreenState extends State<QuizResultScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  widget.animal.name,
+                  widget.animal.name.getTranslatedAnimalName(widget.isEnglish),
                   style: GoogleFonts.ibmPlexMono(
                     color: Colors.black,
                     fontSize: 20,
@@ -433,7 +476,7 @@ class _QuizResultScreenState extends State<QuizResultScreen> {
                                 height: 300,
                                 color: Colors.black54,
                                 child: const Center(
-                                  child: Icon(Icons.pets, size: 64, color: Colors.white),
+                                  child: Icon(Icons.pets, size: 60, color: Colors.white),
                                 ),
                               );
                             },
@@ -475,21 +518,24 @@ class _QuizResultScreenState extends State<QuizResultScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 // Header
-                const SizedBox(height: 20),
+                const SizedBox(height: 8), // Reduced from 15 to 8
 
-                // Result title
-                Text(
-                  widget.isCorrect
-                      ? (widget.isEnglish ? 'You are correct!' : 'Du har rätt!')
-                      : (widget.isEnglish ? 'Game Over!' : 'Spelet är slut!'),
-                  style: GoogleFonts.ibmPlexMono(
-                    fontSize: 32,
-                    fontWeight: FontWeight.w400,
-                    color: Colors.white,
-                    letterSpacing: 1.0,
+                // Result title - Centered
+                Center(
+                  child: Text(
+                    widget.isCorrect
+                        ? (widget.isEnglish ? 'You are correct!' : 'Du har rätt!')
+                        : (widget.isEnglish ? 'Game Over!' : 'Spelet är slut!'),
+                    style: GoogleFonts.ibmPlexMono(
+                      fontSize: 25,
+                      fontWeight: FontWeight.w400,
+                      color: Colors.white,
+                      letterSpacing: 1.0,
+                    ),
+                    textAlign: TextAlign.center,
                   ),
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 10),
 
                 // Animal card
                 Container(
@@ -554,7 +600,9 @@ class _QuizResultScreenState extends State<QuizResultScreen> {
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Text(
-                                      widget.animal.name.isNotEmpty ? widget.animal.name : 'Unknown Animal',
+                                      widget.animal.name.isNotEmpty 
+                                        ? widget.animal.name.getTranslatedAnimalName(widget.isEnglish)
+                                        : (widget.isEnglish ? 'Unknown Animal' : 'Okänt Djur'),
                                       style: GoogleFonts.ibmPlexMono(
                                         fontSize: 20,
                                         fontWeight: FontWeight.w600,
@@ -718,29 +766,29 @@ class _QuizResultScreenState extends State<QuizResultScreen> {
                   ),
                 ),
 
-                const SizedBox(height: 24),
+                const SizedBox(height: 20),
 
                 // Score section
                 if (widget.isCorrect) ...[
                   Container(
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      color: Colors.green.withOpacity(0.1),
+                      color: AppTheme.primaryColor.withOpacity(0.1),
                       borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.green.withOpacity(0.3)),
+                      border: Border.all(color: AppTheme.primaryColor.withOpacity(0.3)),
                     ),
                     child: Text(
                       widget.isEnglish
                           ? 'Your Score: ${calculateScore(attempts: widget.hintIndex, timeMs: widget.totalTimeMs, solved: widget.isCorrect)}/100'
                           : 'Din poäng: ${calculateScore(attempts: widget.hintIndex, timeMs: widget.totalTimeMs, solved: widget.isCorrect)}/100',
                       style: GoogleFonts.ibmPlexMono(
-                        fontSize: 16,
+                        fontSize: 12,
                         fontWeight: FontWeight.w600,
-                        color: Colors.green[700],
+                        color: AppTheme.primaryColor,
                       ),
                     ),
                   ),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 2), // Further reduced from 7 to 2
                 ],
 
                 // Statistics section - Clean design matching app style
@@ -762,7 +810,7 @@ class _QuizResultScreenState extends State<QuizResultScreen> {
                           color: Colors.white,
                         ),
                       ),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 5), // Further reduced from 12 to 4
                       
                       _isLoadingStats
                           ? const Center(
@@ -781,7 +829,7 @@ class _QuizResultScreenState extends State<QuizResultScreen> {
                                     height: 1.4,
                                   ),
                                 ),
-                                const SizedBox(height: 16),
+                                const SizedBox(height: 10),
                                 _buildStatisticsBars(),
                               ],
                             ),
@@ -789,7 +837,7 @@ class _QuizResultScreenState extends State<QuizResultScreen> {
                   ),
                 ),
 
-                const SizedBox(height: 24),
+                const SizedBox(height: 18),
 
                 // View Clues button
                 Align(
@@ -826,7 +874,7 @@ class _QuizResultScreenState extends State<QuizResultScreen> {
                     ),
                   ),
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 7),
                 // Back to home button
                 Align(
                   alignment: Alignment.centerLeft,
@@ -872,7 +920,7 @@ class _QuizResultScreenState extends State<QuizResultScreen> {
                   ),
                 ),
 
-                const SizedBox(height: 32),
+                const SizedBox(height: 25),
               ],
             ),
           ),
@@ -898,15 +946,15 @@ class _StatsRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final textColor = highlight ? Colors.white : Colors.white60;
-    final barColor = highlight ? const Color(0xFF10B981) : const Color(0xFF6B7280);
+    final barColor = highlight ? AppTheme.primaryColor : const Color(0xFF6B7280);
     
     return Container(
-      margin: const EdgeInsets.symmetric(vertical: 1),
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      margin: const EdgeInsets.symmetric(vertical: 0.5),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
       decoration: BoxDecoration(
         color: highlight ? const Color(0xFF1F2937).withOpacity(0.8) : Colors.transparent,
         borderRadius: BorderRadius.circular(4),
-        border: highlight ? Border.all(color: const Color(0xFF10B981), width: 0.5) : null,
+        border: highlight ? Border.all(color: AppTheme.primaryColor, width: 0.5) : null,
       ),
       child: Row(
         children: [
@@ -922,7 +970,7 @@ class _StatsRow extends StatelessWidget {
               ),
             ),
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: 7),
           
           // Progress bar
           Expanded(
@@ -944,7 +992,7 @@ class _StatsRow extends StatelessWidget {
               ),
             ),
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: 7),
           
           // Percentage
           SizedBox(

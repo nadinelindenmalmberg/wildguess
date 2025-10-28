@@ -54,6 +54,20 @@ extension TranslationExtension on String {
       'Brunbjörn': 'Brown Bear',
       'Varg': 'Wolf',
       'Kungsörn': 'Golden Eagle',
+      'Vitval': 'White Whale',
+      'Lodjur': 'Lynx',
+      'Rådjur': 'Roe Deer',
+      'Kronhjort': 'Red Deer',
+      'Hare': 'Hare',
+      'Ekorre': 'Squirrel',
+      'Utter': 'Otter',
+      'Bäver': 'Beaver',
+      'Iller': 'Pine Marten',
+      'Hermelin': 'Stoat',
+      'Vessla': 'Weasel',
+      'Grävling': 'Badger',
+      'Igelkott': 'Hedgehog',
+      'Mullvad': 'Mole',
       'Nordens största hjortdjur': 'Northern Europe\'s largest deer',
       'karakteristiska horn som formar en skopa': 'characteristic antlers that form a scoop',
       'lever i skogar och myrar': 'lives in forests and marshes',
@@ -81,5 +95,13 @@ extension TranslationExtension on String {
     };
     
     return translations[this] ?? this;
+  }
+  
+  /// Get translated animal name based on language preference
+  String getTranslatedAnimalName(bool isEnglish) {
+    if (isEnglish) {
+      return this.translateOffline();
+    }
+    return this;
   }
 }

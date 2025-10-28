@@ -4,35 +4,37 @@ import 'package:http/http.dart' as http;
 class ImageService {
   static final http.Client _client = http.Client();
   
-  // Cache for image URLs to avoid repeated API calls
+  // Cache for image URLs (DISABLED - always fetch fresh images for better quality)
   static final Map<String, String> _imageCache = {};
   
   /// Get animal image URL from Wikimedia Commons
   static Future<String> getAnimalImageUrl(String scientificName, {String? swedishName}) async {
     if (scientificName.isEmpty) return '';
     
-    // Check cache first
-    final cacheKey = scientificName.toLowerCase();
-    if (_imageCache.containsKey(cacheKey)) {
-      print('[ImageService] Using cached image for $scientificName');
-      return _imageCache[cacheKey]!;
-    }
+    // Cache disabled - always fetch fresh images
+    // final cacheKey = scientificName.toLowerCase();
+    // if (_imageCache.containsKey(cacheKey)) {
+    //   print('[ImageService] Using cached image for $scientificName');
+    //   return _imageCache[cacheKey]!;
+    // }
     
-    print('[ImageService] Fetching image for $scientificName');
+    print('[ImageService] Fetching fresh image for $scientificName');
     
     try {
-      // Try multiple search strategies
+      // Try multiple search strategies (prioritize English terms for better results)
       final searchTerms = [
-        scientificName,
-        swedishName,
-        _getCommonName(scientificName),
+        _getCommonName(scientificName), // Try English common name first
+        scientificName, // Then scientific name
+        swedishName, // Swedish name last
       ].where((term) => term != null && term.isNotEmpty).toList();
       
       for (final searchTerm in searchTerms) {
+        print('[ImageService] Searching with term: "$searchTerm"');
         final imageUrl = await _searchWikimediaCommons(searchTerm!);
         if (imageUrl.isNotEmpty) {
-          _imageCache[cacheKey] = imageUrl;
-          print('[ImageService] Found image for $scientificName: $imageUrl');
+          // Cache disabled - don't store in cache
+          // _imageCache[cacheKey] = imageUrl;
+          print('[ImageService] Found fresh image for $scientificName using "$searchTerm": $imageUrl');
           return imageUrl;
         }
       }
@@ -41,7 +43,8 @@ class ImageService {
       print('[ImageService] Wikimedia search failed, trying alternative strategies...');
       final alternativeUrl = await _tryAlternativeImageSearch(scientificName, swedishName);
       if (alternativeUrl.isNotEmpty) {
-        _imageCache[cacheKey] = alternativeUrl;
+        // Cache disabled - don't store in cache
+        // _imageCache[cacheKey] = alternativeUrl;
         return alternativeUrl;
       }
       
@@ -57,7 +60,7 @@ class ImageService {
   /// Search Wikimedia Commons for animal images
   static Future<String> _searchWikimediaCommons(String searchTerm) async {
     try {
-      // Try multiple search strategies with better quality focus
+      // Try multiple search strategies with better quality focus (English terms)
       final searchStrategies = [
         '$searchTerm portrait',
         '$searchTerm head shot',
@@ -65,8 +68,13 @@ class ImageService {
         '$searchTerm face',
         '$searchTerm animal portrait',
         '$searchTerm wildlife photography',
+        '$searchTerm professional photo',
+        '$searchTerm high quality',
         '$searchTerm mammal',
+        '$searchTerm marine mammal', // Add marine mammal for whales/dolphins
+        '$searchTerm cetacean', // Add cetacean for whales/dolphins
         '$searchTerm animal',
+        '$searchTerm wildlife',
         '$searchTerm',
       ];
       
@@ -129,7 +137,8 @@ class ImageService {
               if (title.toLowerCase().contains('portrait') || 
                   title.toLowerCase().contains('head') ||
                   title.toLowerCase().contains('close-up') ||
-                  title.toLowerCase().contains('face')) {
+                  title.toLowerCase().contains('face') ||
+                  title.toLowerCase().contains('headshot')) {
                 score += 80;
               }
               
@@ -144,7 +153,10 @@ class ImageService {
               // Higher score for professional photography terms
               if (title.toLowerCase().contains('photography') || 
                   title.toLowerCase().contains('professional') ||
-                  title.toLowerCase().contains('studio')) {
+                  title.toLowerCase().contains('studio') ||
+                  title.toLowerCase().contains('high quality') ||
+                  title.toLowerCase().contains('hd') ||
+                  title.toLowerCase().contains('4k')) {
                 score += 60;
               }
               
@@ -170,7 +182,11 @@ class ImageService {
               // Penalize low-quality indicators
               if (title.toLowerCase().contains('blurry') || 
                   title.toLowerCase().contains('low-res') ||
-                  title.toLowerCase().contains('small')) {
+                  title.toLowerCase().contains('small') ||
+                  title.toLowerCase().contains('pixelated') ||
+                  title.toLowerCase().contains('grainy') ||
+                  title.toLowerCase().contains('dark') ||
+                  title.toLowerCase().contains('blurry')) {
                 score -= 50;
               }
               
@@ -293,6 +309,20 @@ class ImageService {
       'Neomys fodiens': 'water shrew',
       'Crocidura leucodon': 'bicolored shrew',
       'Sorex minutus': 'pygmy shrew',
+      'Delphinapterus leucas': 'beluga whale',
+      'Orcinus orca': 'killer whale',
+      'Balaenoptera musculus': 'blue whale',
+      'Megaptera novaeangliae': 'humpback whale',
+      'Tursiops truncatus': 'bottlenose dolphin',
+      'Aquila chrysaetos': 'golden eagle',
+      'Bubo bubo': 'eagle owl',
+      'Strix aluco': 'tawny owl',
+      'Asio otus': 'long-eared owl',
+      'Falco peregrinus': 'peregrine falcon',
+      'Accipiter gentilis': 'northern goshawk',
+      'Buteo buteo': 'common buzzard',
+      'Milvus milvus': 'red kite',
+      'Pandion haliaetus': 'osprey',
     };
     
     return commonNames[scientificName];
@@ -306,9 +336,13 @@ class ImageService {
       final genus = scientificName.split(' ').first;
       final genusSearches = [
         '$genus portrait',
-        '$genus head',
+        '$genus head shot',
         '$genus close-up',
+        '$genus animal portrait',
+        '$genus wildlife photography',
+        '$genus professional photo',
         '$genus animal',
+        '$genus wildlife',
         genus,
       ];
       
@@ -320,14 +354,19 @@ class ImageService {
         }
       }
       
-      // Try with common name + quality terms
+      // Try with common name + quality terms (prioritize English)
       final commonName = _getCommonName(scientificName);
       if (commonName != null) {
         final commonSearches = [
           '$commonName portrait',
-          '$commonName head',
+          '$commonName head shot',
           '$commonName close-up',
+          '$commonName animal portrait',
+          '$commonName wildlife photography',
+          '$commonName professional photo',
+          '$commonName high quality',
           '$commonName animal',
+          '$commonName wildlife',
           commonName,
         ];
         
@@ -340,13 +379,14 @@ class ImageService {
         }
       }
       
-      // Try with Swedish name + quality terms
+      // Try with Swedish name + English quality terms (better search results)
       if (swedishName != null && swedishName.isNotEmpty) {
         final swedishSearches = [
           '$swedishName portrait',
-          '$swedishName huvud',
-          '$swedishName närbild',
-          '$swedishName djur',
+          '$swedishName head',
+          '$swedishName close-up',
+          '$swedishName animal',
+          '$swedishName wildlife',
           swedishName,
         ];
         
@@ -391,10 +431,10 @@ class ImageService {
     return assetMap[scientificName] ?? 'assets/images/default_animal.jpg';
   }
   
-  /// Clear image cache
+  /// Clear image cache (cache is disabled, but this clears any existing cache)
   static void clearCache() {
     _imageCache.clear();
-    print('[ImageService] Image cache cleared');
+    print('[ImageService] Image cache cleared (cache is disabled - fresh images will be fetched)');
   }
   
   /// Dispose resources
