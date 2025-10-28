@@ -18,6 +18,17 @@ class HistoryService {
       final historyJson = prefs.getString(_historyKey) ?? '[]';
       final List<dynamic> history = json.decode(historyJson);
       
+      // Ensure only a single entry exists for today's game for the same animal
+      final completedDay = DateTime(completedAt.year, completedAt.month, completedAt.day);
+      history.removeWhere((item) {
+        final String? ts = item['completed_at'] as String?;
+        final String? sci = item['animal_scientific_name'] as String?;
+        final DateTime? parsed = ts != null ? DateTime.tryParse(ts) : null;
+        if (parsed == null) return false;
+        final itemDay = DateTime(parsed.year, parsed.month, parsed.day);
+        return itemDay == completedDay && sci == animal.scientificName;
+      });
+      
       final gameRecord = {
         'animal_name': animal.name,
         'animal_scientific_name': animal.scientificName,
