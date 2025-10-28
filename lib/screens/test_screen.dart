@@ -1,6 +1,10 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../services/statistics_service.dart';
+import '../services/daily_play_service.dart';
+import '../services/history_service.dart';
 
 class TestScreen extends StatefulWidget {
   const TestScreen({super.key});
@@ -157,6 +161,12 @@ class _TestScreenState extends State<TestScreen> {
                   Icons.clear,
                   Colors.red,
                   () => _clearData(),
+                ),
+                _buildTestButton(
+                  'Reset Today\'s Play',
+                  Icons.refresh,
+                  Colors.amber,
+                  () => _resetTodaysPlay(),
                 ),
               ],
             ),
@@ -395,5 +405,41 @@ class _TestScreenState extends State<TestScreen> {
       _myRank = {};
       _status = 'Data cleared';
     });
+  }
+
+  Future<void> _resetTodaysPlay() async {
+    setState(() {
+      _isLoading = true;
+      _status = 'Resetting today\'s play...';
+    });
+
+    try {
+      // Clear daily play status
+      await DailyPlayService.clearDailyPlay();
+      
+      // Clear local history for today to fix statistics
+      final history = await HistoryService.getGameHistory();
+      final today = DateTime.now();
+      final todayDate = DateTime(today.year, today.month, today.day);
+      
+      // Remove all entries from today
+      final filteredHistory = history.where((game) {
+        final gameDate = DateTime.parse(game['completed_at']);
+        final gameDay = DateTime(gameDate.year, gameDate.month, gameDate.day);
+        return gameDay != todayDate;
+      }).toList();
+      
+      // Save filtered history back
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('game_history', json.encode(filteredHistory));
+      
+      setState(() {
+        _status = 'Today\'s play reset! History cleared. You can now play again.';
+      });
+    } catch (e) {
+      setState(() => _status = 'Error resetting today\'s play: $e');
+    } finally {
+      setState(() => _isLoading = false);
+    }
   }
 }

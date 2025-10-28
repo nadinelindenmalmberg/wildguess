@@ -86,13 +86,22 @@ class _QuizResultScreenState extends State<QuizResultScreen> {
           final percentage = totalPlayers > 0 ? (currentCount / totalPlayers * 100).round() : 0;
           print('[QuizResultScreen] Final percentage: $percentage%');
           
+          // Ensure the hintDistribution includes the current user's attempt for consistency
+          int adjustedFailedCount = failedCount;
+          if (widget.isCorrect) {
+            hintDistribution[widget.hintIndex] = (hintDistribution[widget.hintIndex] ?? 0) + 1;
+          } else {
+            // User failed, so we need to add 1 to the failed count for the bar chart
+            adjustedFailedCount = failedCount + 1;
+          }
+          
           if (mounted) {
             setState(() {
               _dailyStats = {
                 'percentage': percentage,
                 'totalGames': totalPlayers,
                 'hintDistribution': hintDistribution,
-                'failedCount': failedCount,
+                'failedCount': adjustedFailedCount,
                 'isLocal': false,
                 'isDefault': false,
                 'isGlobal': true,
@@ -235,35 +244,60 @@ class _QuizResultScreenState extends State<QuizResultScreen> {
     print('[QuizResultScreen] Hint distribution: $hintDistribution');
     print('[QuizResultScreen] User: isCorrect=${widget.isCorrect}, hintIndex=${widget.hintIndex}');
     
-    return Column(
-      children: [
-        // Rows 1-5 for successful attempts
-        for (int i = 1; i <= 5; i++) ...[
-          () {
-            final percent = totalGames > 0 ? ((hintDistribution[i] ?? 0) / totalGames * 100).round() : 0;
-            final highlight = i == widget.hintIndex && widget.isCorrect;
-            print('[QuizResultScreen] Row $i: percent=$percent%, highlight=$highlight');
-            return _StatsRow(
-              attempt: i.toString(), 
-              percent: percent, 
-              highlight: highlight,
-              isEnglish: widget.isEnglish,
-            );
-          }(),
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0xFF1F2937).withOpacity(0.3),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.white.withOpacity(0.1), width: 0.5),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header
+          Text(
+            widget.isEnglish ? 'Attempt Distribution' : 'Försöksfördelning',
+            style: GoogleFonts.ibmPlexMono(
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+              color: Colors.white70,
+            ),
+          ),
+          const SizedBox(height: 8),
+          
+          // Statistics rows
+          Column(
+            children: [
+              // Rows 1-5 for successful attempts
+              for (int i = 1; i <= 5; i++) ...[
+                () {
+                  final percent = totalGames > 0 ? ((hintDistribution[i] ?? 0) / totalGames * 100).round() : 0;
+                  final highlight = i == widget.hintIndex && widget.isCorrect;
+                  print('[QuizResultScreen] Row $i: percent=$percent%, highlight=$highlight');
+                  return _StatsRow(
+                    attempt: i.toString(), 
+                    percent: percent, 
+                    highlight: highlight,
+                    isEnglish: widget.isEnglish,
+                  );
+                }(),
+              ],
+              // Row X for failed attempts
+              () {
+                final percent = totalGames > 0 ? (failedCount / totalGames * 100).round() : 0;
+                final highlight = !widget.isCorrect; // Highlight X row whenever user failed, regardless of try number
+                print('[QuizResultScreen] Row X: percent=$percent%, highlight=$highlight');
+                return _StatsRow(
+                  attempt: 'X', 
+                  percent: percent, 
+                  highlight: highlight,
+                  isEnglish: widget.isEnglish,
+                );
+              }(),
+            ],
+          ),
         ],
-        // Row X for failed attempts
-        () {
-          final percent = totalGames > 0 ? (failedCount / totalGames * 100).round() : 0;
-          final highlight = !widget.isCorrect && widget.hintIndex == 5;
-          print('[QuizResultScreen] Row X: percent=$percent%, highlight=$highlight');
-          return _StatsRow(
-            attempt: 'X', 
-            percent: percent, 
-            highlight: highlight,
-            isEnglish: widget.isEnglish,
-          );
-        }(),
-      ],
+      ),
     );
   }
 
@@ -879,48 +913,67 @@ class _StatsRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
+    // Define colors based on highlight state
+    final textColor = highlight ? Colors.white : Colors.white60;
+    final barColor = highlight ? const Color(0xFF10B981) : const Color(0xFF6B7280);
+    
+    return Container(
+      margin: const EdgeInsets.symmetric(vertical: 1),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: highlight ? const Color(0xFF1F2937).withOpacity(0.8) : Colors.transparent,
+        borderRadius: BorderRadius.circular(4),
+        border: highlight ? Border.all(color: const Color(0xFF10B981), width: 0.5) : null,
+      ),
       child: Row(
         children: [
+          // Attempt number - compact
           SizedBox(
-            width: 24,
+            width: 20,
             child: Text(
               attempt,
               style: GoogleFonts.ibmPlexMono(
-                color: highlight ? Colors.white : Colors.white70,
-                fontSize: 14,
+                color: textColor,
+                fontSize: 12,
                 fontWeight: highlight ? FontWeight.w600 : FontWeight.w400,
               ),
             ),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 8),
+          
+          // Progress bar - compact
           Expanded(
             child: Container(
-              height: 8,
+              height: 6,
               decoration: BoxDecoration(
-                color: Colors.white24,
-                borderRadius: BorderRadius.circular(4),
+                color: Colors.white.withOpacity(0.15),
+                borderRadius: BorderRadius.circular(3),
               ),
               child: FractionallySizedBox(
                 alignment: Alignment.centerLeft,
-                widthFactor: percent / 100,
+                widthFactor: (percent / 100).clamp(0.0, 1.0),
                 child: Container(
                   decoration: BoxDecoration(
-                    color: highlight ? Colors.white : Colors.white70,
-                    borderRadius: BorderRadius.circular(4),
+                    color: barColor,
+                    borderRadius: BorderRadius.circular(3),
                   ),
                 ),
               ),
             ),
           ),
-          const SizedBox(width: 12),
-          Text(
-            '$percent%',
-            style: GoogleFonts.ibmPlexMono(
-              color: highlight ? Colors.white : Colors.white70,
-              fontSize: 14,
-              fontWeight: highlight ? FontWeight.w600 : FontWeight.w400,
+          const SizedBox(width: 8),
+          
+          // Percentage - compact
+          SizedBox(
+            width: 35,
+            child: Text(
+              '$percent%',
+              textAlign: TextAlign.right,
+              style: GoogleFonts.ibmPlexMono(
+                color: textColor,
+                fontSize: 11,
+                fontWeight: FontWeight.w500,
+              ),
             ),
           ),
         ],
