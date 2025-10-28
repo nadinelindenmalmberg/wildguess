@@ -1039,7 +1039,7 @@ class _QuizScreenState extends State<QuizScreen> {
 
       setState(() {
         if (pressedIDontKnow) {
-          _searchController.text = widget.isEnglish ? '<Skipped>' : '<Svarade inte>'; // Tydligare text
+          _searchController.text = widget.isEnglish ? 'Skipped' : 'svarade inte'; // Tydligare text
         } else {
           _searchController.text = answer;
         }

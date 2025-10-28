@@ -10,6 +10,7 @@ import 'quiz_screen.dart';
 import 'tutorial_screen.dart';
 import 'history_screen.dart';
 import 'test_screen.dart';
+import 'animal_detail_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -306,9 +307,21 @@ class _HomeScreenState extends State<HomeScreen> {
                             ),
                             const SizedBox(height: 48),
 
-                            // Today's animal display (only show if already played)
-                            if (_hasPlayedToday) ...[
-                              Container(
+                           // Today's animal display (only show if already played)
+                           if (_hasPlayedToday) ...[
+                             GestureDetector(
+                               onTap: () {
+                                 Navigator.push(
+                                   context,
+                                   MaterialPageRoute(
+                                     builder: (context) => AnimalDetailScreen(
+                                       animal: animal,
+                                       isEnglish: isEnglish,
+                                     ),
+                                   ),
+                                 );
+                               },
+                               child: Container(
                                 width: double.infinity,
                                 padding: const EdgeInsets.all(20),
                                 decoration: BoxDecoration(
@@ -351,6 +364,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                       ),
                                     ],
                                   ],
+                                ),
                                 ),
                               ),
                               const SizedBox(height: 24),
