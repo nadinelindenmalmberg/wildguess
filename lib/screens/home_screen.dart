@@ -325,10 +325,10 @@ class _HomeScreenState extends State<HomeScreen> {
                                 width: double.infinity,
                                 padding: const EdgeInsets.all(20),
                                 decoration: BoxDecoration(
-                                  color: const Color(0xFF1F2937),
+                                  color: const Color(0xFF374151),
                                   borderRadius: BorderRadius.circular(16),
                                   border: Border.all(
-                                    color: const Color(0xFF374151),
+                                    color: const Color(0xFF6B7280), 
                                     width: 1,
                                   ),
                                 ),
@@ -390,10 +390,10 @@ class _HomeScreenState extends State<HomeScreen> {
                                 width: double.infinity,
                                 height: 64,
                                 decoration: BoxDecoration(
-                                  color: const Color(0xFF374151),
+                                  color: const Color(0xFF1F2937), 
                                   borderRadius: BorderRadius.circular(20),
                                   border: Border.all(
-                                    color: const Color(0xFF6B7280),
+                                    color: const Color(0xFF374151),
                                     width: 1,
                                   ),
                                 ),
