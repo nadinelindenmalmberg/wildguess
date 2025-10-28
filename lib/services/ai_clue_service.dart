@@ -71,6 +71,7 @@ class AiClueService {
 
   /// *** NY METOD: Generate interesting facts for an animal ***
   Future<List<String>> generateFacts(AnimalData animal, {bool isEnglish = false}) async {
+      print('[AiClueService] generateFacts called for: ${animal.name}, isEnglish: $isEnglish');
       if (_isLoadingFacts) {
           print('[AiClueService] Fact request already in progress, skipping...');
           return []; // Returnera tom lista eller fallback
@@ -96,6 +97,7 @@ class AiClueService {
 
           // Anropar en ny retry-metod specifik för /facts
           final facts = await _callFactsBackendWithRetry(animal, isEnglish);
+          print('[AiClueService] Backend returned ${facts.length} facts: $facts');
 
           // Cache the results
           _factCache[cacheKey] = facts;

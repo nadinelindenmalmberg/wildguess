@@ -2,8 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../models/animal_data.dart'; // Import AnimalData
 import '../widgets/animal_image_widget.dart'; // Import AnimalImageWidget
+import '../services/ai_clue_service.dart'; // Import AI service
 
-class AnimalDetailScreen extends StatelessWidget {
+class AnimalDetailScreen extends StatefulWidget {
   final AnimalData animal;
   final bool isEnglish;
 
@@ -12,6 +13,55 @@ class AnimalDetailScreen extends StatelessWidget {
     required this.animal,
     required this.isEnglish,
   });
+
+  @override
+  State<AnimalDetailScreen> createState() => _AnimalDetailScreenState();
+}
+
+class _AnimalDetailScreenState extends State<AnimalDetailScreen> {
+  final AiClueService _aiClueService = AiClueService();
+  List<String> _aiFacts = [];
+  bool _isLoadingFacts = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadAiFacts();
+  }
+
+  @override
+  void dispose() {
+    _aiClueService.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadAiFacts() async {
+    if (!mounted) return;
+    print('[AnimalDetailScreen] Loading AI facts for: ${widget.animal.name}');
+    setState(() {
+      _isLoadingFacts = true;
+    });
+    try {
+      final facts = await _aiClueService.generateFacts(
+        widget.animal,
+        isEnglish: widget.isEnglish,
+      );
+      print('[AnimalDetailScreen] Received ${facts.length} facts: $facts');
+      if (mounted) {
+        setState(() {
+          _aiFacts = facts;
+          _isLoadingFacts = false;
+        });
+      }
+    } catch (e) {
+      print("Failed to load AI facts in AnimalDetailScreen: $e");
+      if (mounted) {
+        setState(() {
+          _isLoadingFacts = false;
+        });
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -25,7 +75,7 @@ class AnimalDetailScreen extends StatelessWidget {
         // *** 2. Change AppBar icon/title color to white for contrast ***
         iconTheme: const IconThemeData(color: Colors.white),
         title: Text(
-          isEnglish ? 'Animal Details' : 'Djurdetaljer',
+          widget.isEnglish ? 'Animal Details' : 'Djurdetaljer',
           style: GoogleFonts.ibmPlexMono(
             fontSize: 20,
             fontWeight: FontWeight.w600,
@@ -52,10 +102,10 @@ class AnimalDetailScreen extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   // Animal Image (clipped by the container)
-                  if (animal.imageUrl.isNotEmpty)
+                  if (widget.animal.imageUrl.isNotEmpty)
                     AnimalImageWidget(
-                      imageUrl: animal.imageUrl,
-                      animalName: animal.name,
+                      imageUrl: widget.animal.imageUrl,
+                      animalName: widget.animal.name,
                       width: double.infinity,
                       height: 250, // Adjust height as needed
                       fit: BoxFit.cover,
@@ -75,7 +125,7 @@ class AnimalDetailScreen extends StatelessWidget {
 
                   // Animal Name (ensure text color is black)
                   Text(
-                    animal.name.isNotEmpty ? animal.name : 'Unknown Animal',
+                    widget.animal.name.isNotEmpty ? widget.animal.name : 'Unknown Animal',
                     style: GoogleFonts.ibmPlexMono(
                       fontSize: 28,
                       fontWeight: FontWeight.w700,
@@ -83,10 +133,10 @@ class AnimalDetailScreen extends StatelessWidget {
                     ),
                   ),
                   // Scientific Name
-                  if (animal.scientificName.isNotEmpty) ...[
+                  if (widget.animal.scientificName.isNotEmpty) ...[
                     const SizedBox(height: 4),
                     Text(
-                      animal.scientificName,
+                      widget.animal.scientificName,
                       style: GoogleFonts.ibmPlexMono(
                         fontSize: 16,
                         color: Colors.black.withOpacity(0.7), // Dark text
@@ -97,9 +147,9 @@ class AnimalDetailScreen extends StatelessWidget {
                   const SizedBox(height: 24),
 
                   // Description Section
-                  if (animal.description.isNotEmpty) ...[
+                  if (widget.animal.description.isNotEmpty) ...[
                     Text(
-                      isEnglish ? 'Description' : 'Beskrivning',
+                      widget.isEnglish ? 'Description' : 'Beskrivning',
                       style: GoogleFonts.ibmPlexMono(
                         fontSize: 18,
                         fontWeight: FontWeight.w600,
@@ -108,7 +158,7 @@ class AnimalDetailScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      animal.description,
+                      widget.animal.description,
                       style: GoogleFonts.ibmPlexMono(
                         fontSize: 15,
                         color: Colors.black.withOpacity(0.8), // Dark text
@@ -118,53 +168,76 @@ class AnimalDetailScreen extends StatelessWidget {
                     const SizedBox(height: 24),
                   ],
 
-                  // Hints/Facts Section
-                  if (animal.hints.isNotEmpty) ...[
-                    Text(
-                      isEnglish ? 'Interesting Facts / Clues' : 'Intressanta fakta / Ledtrådar',
-                      style: GoogleFonts.ibmPlexMono(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.black87, // Dark text
+                  // AI Facts Section (replaces hints)
+                  Text(
+                    widget.isEnglish ? 'Interesting Facts' : 'Intressanta fakta',
+                    style: GoogleFonts.ibmPlexMono(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.black87, // Dark text
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  
+                  // Show loading indicator or AI facts
+                  if (_isLoadingFacts)
+                    const Center(
+                      child: Padding(
+                        padding: EdgeInsets.symmetric(vertical: 20.0),
+                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black54),
                       ),
-                    ),
-                    const SizedBox(height: 12),
+                    )
+                  else if (_aiFacts.isNotEmpty)
                     Column(
-                      children: animal.hints.map((hint) => Padding(
-                        padding: const EdgeInsets.only(bottom: 10),
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Container(
-                              margin: const EdgeInsets.only(top: 6, right: 10),
-                              width: 6,
-                              height: 6,
-                              decoration: const BoxDecoration(
-                                color: Colors.black54, // Dark bullet
-                                shape: BoxShape.circle,
-                              ),
-                            ),
-                            Expanded(
-                              child: Text(
-                                hint,
-                                style: GoogleFonts.ibmPlexMono(
-                                  fontSize: 14,
-                                  color: Colors.black.withOpacity(0.8), // Dark text
-                                  height: 1.4,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      )).toList(),
+                      children: _aiFacts.map((fact) => _buildFactItem(fact)).toList(),
+                    )
+                  else if (widget.animal.hints.isNotEmpty) // Fallback to original hints
+                    Column(
+                      children: widget.animal.hints.take(3).map((hint) => _buildFactItem(hint)).toList(),
+                    )
+                  else
+                    Text(
+                      widget.isEnglish ? 'No interesting facts available.' : 'Inga intressanta fakta tillgängliga.',
+                      style: GoogleFonts.ibmPlexMono(fontSize: 13, color: Colors.black54),
                     ),
-                    const SizedBox(height: 16), // Add padding at the bottom inside card
-                  ],
+                  
+                  const SizedBox(height: 16), // Add padding at the bottom inside card
                 ],
               ),
             ),
           ),
         ),
+      ),
+    );
+  }
+
+  // Helper widget for displaying facts
+  Widget _buildFactItem(String fact) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            margin: const EdgeInsets.only(top: 6, right: 10),
+            width: 6,
+            height: 6,
+            decoration: const BoxDecoration(
+              color: Colors.black54,
+              shape: BoxShape.circle,
+            ),
+          ),
+          Expanded(
+            child: Text(
+              fact,
+              style: GoogleFonts.ibmPlexMono(
+                fontSize: 14,
+                color: Colors.black.withOpacity(0.8),
+                height: 1.4,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

@@ -129,29 +129,29 @@ class _QuizScreenState extends State<QuizScreen> {
     super.dispose(); // Korrekt super-anrop
   }
 
+  void _clearSearchResults() {
+    setState(() {
+      _filtered = const [];
+      _searchResults = [];
+      _hasChosenSuggestion = false;
+      _isIncorrect = false;
+      _isCorrect = false;
+      _selectedAnswer = null;
+      _isSearching = false;
+    });
+  }
+
   void _onQueryChanged() {
     final query = _searchController.text.trim();
     _searchDebounceTimer?.cancel();
     
     if (query.isEmpty) {
-      setState(() {
-        _filtered = const [];
-        _searchResults = [];
-        _hasChosenSuggestion = false;
-        _isIncorrect = false;
-        _isCorrect = false;
-        _selectedAnswer = null;
-        _isSearching = false;
-      });
+      _clearSearchResults();
       return;
     }
     
     if (query.length < 2) {
-    setState(() {
-        _filtered = const [];
-        _searchResults = [];
-        _isSearching = false;
-      });
+      _clearSearchResults();
       return;
     }
     
@@ -178,11 +178,7 @@ class _QuizScreenState extends State<QuizScreen> {
         }
       } catch (e) {
         if (mounted) {
-          setState(() {
-            _searchResults = [];
-            _filtered = const [];
-            _isSearching = false;
-          });
+          _clearSearchResults();
           print('Search error: $e'); // Print är ok under utveckling
         }
       }
@@ -603,7 +599,7 @@ class _QuizScreenState extends State<QuizScreen> {
                                           _searchFocusNode.unfocus();
                                           setState(() {
                                             _filtered = const [];
-                                                            _searchResults = [];
+                                            _searchResults = [];
                                             _hasChosenSuggestion = true;
                                             _isIncorrect = false;
                                             _isCorrect = false;
@@ -922,7 +918,9 @@ class _QuizScreenState extends State<QuizScreen> {
       setState(() {
         _isIncorrect = true; _isCorrect = false;
         _pressedIDontKnow = false;
-        _searchFocusNode.unfocus(); _filtered = const [];
+        _searchFocusNode.unfocus(); 
+        _filtered = const [];
+        _searchResults = [];
       });
       // If this is the last question and answer is wrong, go to next question to trigger failure logic
       if (_currentLevel >= widget.totalQuestions) {
@@ -981,8 +979,7 @@ class _QuizScreenState extends State<QuizScreen> {
         _isCorrect = false;
         _isIncorrect = false;
         _pressedIDontKnow = false;
-        _filtered = const [];
-        _searchResults = [];
+        _clearSearchResults();
       });
       // Behöver inte ladda level data eftersom vi går till en ny, tom nivå
       // _loadLevelData(); // Tas bort

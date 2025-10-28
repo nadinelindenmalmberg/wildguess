@@ -2,10 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../models/animal_data.dart';
 import '../services/history_service.dart';
-import '../services/statistics_service.dart';
 import 'home_screen.dart';
-import 'quiz_screen.dart'; // Behövs troligen inte här, men skadar inte
-import '../services/ai_clue_service.dart'; // *** NYTT: Importera AiClueService ***
+import '../services/ai_clue_service.dart';
+import '../services/statistics_service.dart';
 
 class QuizResultScreen extends StatefulWidget {
   final AnimalData animal;
@@ -13,7 +12,7 @@ class QuizResultScreen extends StatefulWidget {
   final bool isCorrect;
   final int hintIndex;
   final int totalHints;
-  final List<String> aiClues; // Dessa är ledtrådarna, inte fakta
+  final List<String> aiClues;
   final int totalTimeMs;
 
   const QuizResultScreen({
@@ -36,113 +35,45 @@ class _QuizResultScreenState extends State<QuizResultScreen> {
   Map<String, dynamic> _dailyStats = {};
   bool _isLoadingStats = true;
 
-  // *** NYTT: Variabler för AI-fakta ***
-  final AiClueService _aiClueService = AiClueService(); // Skapa instans
+  // AI facts variables
+  final AiClueService _aiClueService = AiClueService();
   List<String> _aiFacts = [];
   bool _isLoadingFacts = true;
-  // *** SLUT NYTT ***
 
   @override
   void initState() {
     super.initState();
     _saveGameHistory();
     _loadDailyStatistics();
-    _loadAiFacts(); // *** NYTT: Anropa metoden för att ladda fakta ***
+    _loadAiFacts();
   }
 
-  // *** NYTT: dispose för AiClueService ***
   @override
   void dispose() {
-    _aiClueService.dispose(); // Glöm inte dispose
-    // Befintliga dispose-anrop (om några) ska vara kvar
+    _aiClueService.dispose();
     super.dispose();
   }
-  // *** SLUT NYTT ***
+
+  Future<void> _saveGameHistory() async {
+    try {
+      await HistoryService.saveGameHistory(
+        animal: widget.animal,
+        completedAt: DateTime.now(),
+        questionIndex: widget.hintIndex,
+        totalQuestions: widget.totalHints,
+        isCorrect: widget.isCorrect,
+      );
+    } catch (e) {
+      print('Error saving game history: $e');
+    }
+  }
 
   Future<void> _loadDailyStatistics() async {
-    // Befintlig kod... (ingen ändring här)
-     try {
-      // Try to get global statistics from Supabase first
-      try {
-        final leaderboard = await getTopToday(
-          limit: 100,
-          animalForTesting: testingMode ? widget.animal.name : null,
-          animalName: widget.animal.name,
-        );
-
-        if (leaderboard.isNotEmpty) {
-          // Calculate global statistics from leaderboard data
-          final totalPlayers = leaderboard.length;
-          final hintDistribution = <int, int>{};
-
-          print('[QuizResultScreen] Loading global stats: totalPlayers=$totalPlayers, isCorrect=${widget.isCorrect}, hintIndex=${widget.hintIndex}');
-          print('[QuizResultScreen] Raw leaderboard data: $leaderboard');
-
-          // Count successful attempts for each hint level (only solved = true)
-          for (int i = 1; i <= 5; i++) {
-            hintDistribution[i] = leaderboard.where((entry) =>
-              entry['attempts'] == i && entry['solved'] == true).length;
-            print('[QuizResultScreen] Hint $i successful: ${hintDistribution[i]}');
-          }
-
-          // Count failed attempts (solved = false)
-          final failedCount = leaderboard.where((entry) =>
-            entry['solved'] == false).length;
-          print('[QuizResultScreen] Failed attempts: $failedCount');
-
-          // For daily animal system: calculate percentage based on success/failure
-          int currentCount;
-          if (widget.isCorrect) {
-            // User succeeded, count successful attempts at their hint level
-            currentCount = hintDistribution[widget.hintIndex] ?? 0;
-            print('[QuizResultScreen] User succeeded, counting hint ${widget.hintIndex}: $currentCount');
-          } else {
-            // User failed, count failed attempts
-            currentCount = failedCount;
-            print('[QuizResultScreen] User failed, counting failed attempts: $currentCount');
-          }
-          final percentage = totalPlayers > 0 ? (currentCount / totalPlayers * 100).round() : 0;
-          print('[QuizResultScreen] Final percentage: $percentage%');
-          
-          // Ensure the hintDistribution includes the current user's attempt for consistency
-          int adjustedFailedCount = failedCount;
-          if (widget.isCorrect) {
-            hintDistribution[widget.hintIndex] = (hintDistribution[widget.hintIndex] ?? 0) + 1;
-          } else {
-            // User failed, so we need to add 1 to the failed count for the bar chart
-            adjustedFailedCount = failedCount + 1;
-          }
-          
-          if (mounted) {
-            setState(() {
-              _dailyStats = {
-                'percentage': percentage,
-                'totalGames': totalPlayers,
-                'hintDistribution': hintDistribution,
-                'failedCount': adjustedFailedCount,
-                'isLocal': false,
-                'isDefault': false,
-                'isGlobal': true,
-              };
-              _isLoadingStats = false;
-            });
-          }
-          return;
-        }
-      } catch (e) {
-        print('Error loading global statistics: $e');
-        // Fall back to local statistics
-      }
-
-      // Fallback to local statistics if Supabase fails
+    try {
       final stats = await StatisticsService.getDailyStatistics(widget.hintIndex);
-      // Add failed count for local statistics
-      final localStats = Map<String, dynamic>.from(stats);
-      localStats['failedCount'] = stats['failedCount'] ?? 0;
-
       if (mounted) {
         setState(() {
-          _dailyStats = localStats;
+          _dailyStats = stats;
           _isLoadingStats = false;
         });
       }
@@ -156,35 +87,6 @@ class _QuizResultScreenState extends State<QuizResultScreen> {
     }
   }
 
-  Future<void> _saveGameHistory() async {
-    // Befintlig kod... (ingen ändring här)
-     // Save to local history
-    await HistoryService.saveGameHistory(
-      animal: widget.animal,
-      isCorrect: widget.isCorrect,
-      questionIndex: widget.hintIndex,
-      totalQuestions: widget.totalHints,
-      completedAt: DateTime.now(),
-    );
-
-    // Submit to Supabase with new scoring system
-    try {
-      print('[QuizResultScreen] Submitting score: attempts=${widget.hintIndex}, solved=${widget.isCorrect}, timeMs=${widget.totalTimeMs}');
-      await submitScore(
-        attempts: widget.hintIndex,
-        solved: widget.isCorrect,
-        timeMs: widget.totalTimeMs,
-        animalForTesting: testingMode ? widget.animal.name : null,
-        animalName: widget.animal.name, // Always pass animal name for daily tracking
-      );
-      print('[QuizResultScreen] Score submitted to Supabase successfully');
-    } catch (e) {
-      print('[QuizResultScreen] Error submitting score to Supabase: $e');
-      // Don't show error to user, just log it
-    }
-  }
-
-  // *** NY METOD: Ladda AI-fakta ***
   Future<void> _loadAiFacts() async {
     if (!mounted) return;
     setState(() {
@@ -206,18 +108,13 @@ class _QuizResultScreenState extends State<QuizResultScreen> {
       if (mounted) {
         setState(() {
           _isLoadingFacts = false;
-          // Du kan välja att visa ett felmeddelande här om du vill, t.ex. med ScaffoldMessenger
-          // ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Kunde inte ladda fakta.')));
         });
       }
     }
   }
-  // *** SLUT NYTT ***
-
 
   String _getStatisticsText() {
-    // Befintlig kod... (ingen ändring här)
-     if (_dailyStats.isEmpty) {
+    if (_dailyStats.isEmpty) {
       if (widget.isCorrect) {
         return widget.isEnglish
             ? "You and 52% of other players solved today's animal on the ${widget.hintIndex}rd try!"
@@ -231,51 +128,45 @@ class _QuizResultScreenState extends State<QuizResultScreen> {
 
     final percentage = _dailyStats['percentage'] ?? 52;
     final isDefault = _dailyStats['isDefault'] ?? false;
-    final isGlobal = _dailyStats['isGlobal'] ?? false;
     final totalGames = _dailyStats['totalGames'] ?? 0;
-
-    String dataSource = isGlobal ? "players today" : "other players";
-    String dataSourceSv = isGlobal ? "spelare idag" : "andra spelare";
 
     if (isDefault) {
       if (widget.isCorrect) {
         return widget.isEnglish
-            ? "You and $percentage% of $dataSource solved today's animal on the ${widget.hintIndex}rd try!"
-            : "Du och $percentage% av $dataSourceSv löste dagens djur på ${widget.hintIndex}:e försöket!";
+            ? "You and $percentage% of other players solved today's animal on the ${widget.hintIndex}rd try!"
+            : "Du och $percentage% av andra spelare löste dagens djur på ${widget.hintIndex}:e försöket!";
       } else {
         return widget.isEnglish
-            ? "You and $percentage% of $dataSource didn't solve today's animal!"
-            : "Du och $percentage% av $dataSourceSv löste inte dagens djur!";
+            ? "You and $percentage% of other players didn't solve today's animal!"
+            : "Du och $percentage% av andra spelare löste inte dagens djur!";
       }
     } else {
       if (totalGames < 5) {
         if (widget.isCorrect) {
           return widget.isEnglish
-              ? "You and $percentage% of $dataSource solved today's animal on the ${widget.hintIndex}rd try! ($totalGames players)"
-              : "Du och $percentage% av $dataSourceSv löste dagens djur på ${widget.hintIndex}:e försöket! ($totalGames spelare)";
+              ? "You and $percentage% of other players solved today's animal on the ${widget.hintIndex}rd try! ($totalGames players)"
+              : "Du och $percentage% av andra spelare löste dagens djur på ${widget.hintIndex}:e försöket! ($totalGames spelare)";
         } else {
           return widget.isEnglish
-              ? "You and $percentage% of $dataSource didn't solve today's animal! ($totalGames players)"
-              : "Du och $percentage% av $dataSourceSv löste inte dagens djur! ($totalGames spelare)";
+              ? "You and $percentage% of other players didn't solve today's animal! ($totalGames players)"
+              : "Du och $percentage% av andra spelare löste inte dagens djur! ($totalGames spelare)";
         }
       } else {
         if (widget.isCorrect) {
           return widget.isEnglish
-              ? "You and $percentage% of $dataSource solved today's animal on the ${widget.hintIndex}rd try! ($totalGames players)"
-              : "Du och $percentage% av $dataSourceSv löste dagens djur på ${widget.hintIndex}:e försöket! ($totalGames spelare)";
+              ? "You and $percentage% of other players solved today's animal on the ${widget.hintIndex}rd try! ($totalGames players)"
+              : "Du och $percentage% av andra spelare löste dagens djur på ${widget.hintIndex}:e försöket! ($totalGames spelare)";
         } else {
           return widget.isEnglish
-              ? "You and $percentage% of $dataSource didn't solve today's animal! ($totalGames players)"
-              : "Du och $percentage% av $dataSourceSv löste inte dagens djur! ($totalGames spelare)";
+              ? "You and $percentage% of other players didn't solve today's animal! ($totalGames players)"
+              : "Du och $percentage% av andra spelare löste inte dagens djur! ($totalGames spelare)";
         }
       }
     }
   }
 
   Widget _buildStatisticsBars() {
-    // Befintlig kod... (ingen ändring här)
     if (_dailyStats.isEmpty) {
-      // Fallback to default values
       return Column(
         children: [
           _StatsRow(attempt: '1', percent: 8, isEnglish: widget.isEnglish),
@@ -292,73 +183,40 @@ class _QuizResultScreenState extends State<QuizResultScreen> {
     final failedCount = _dailyStats['failedCount'] ?? 0;
     final totalGames = _dailyStats['totalGames'] ?? 1;
 
-    print('[QuizResultScreen] Building bars: totalGames=$totalGames, failedCount=$failedCount');
-    print('[QuizResultScreen] Hint distribution: $hintDistribution');
-    print('[QuizResultScreen] User: isCorrect=${widget.isCorrect}, hintIndex=${widget.hintIndex}');
-    
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: const Color(0xFF1F2937).withOpacity(0.3),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.white.withOpacity(0.1), width: 0.5),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Header
-          Text(
-            widget.isEnglish ? 'Attempt Distribution' : 'Försöksfördelning',
-            style: GoogleFonts.ibmPlexMono(
-              fontSize: 12,
-              fontWeight: FontWeight.w500,
-              color: Colors.white70,
-            ),
-          ),
-          const SizedBox(height: 8),
-          
-          // Statistics rows
-          Column(
-            children: [
-              // Rows 1-5 for successful attempts
-              for (int i = 1; i <= 5; i++) ...[
-                () {
-                  final percent = totalGames > 0 ? ((hintDistribution[i] ?? 0) / totalGames * 100).round() : 0;
-                  final highlight = i == widget.hintIndex && widget.isCorrect;
-                  print('[QuizResultScreen] Row $i: percent=$percent%, highlight=$highlight');
-                  return _StatsRow(
-                    attempt: i.toString(), 
-                    percent: percent, 
-                    highlight: highlight,
-                    isEnglish: widget.isEnglish,
-                  );
-                }(),
-              ],
-              // Row X for failed attempts
-              () {
-                final percent = totalGames > 0 ? (failedCount / totalGames * 100).round() : 0;
-                final highlight = !widget.isCorrect; // Highlight X row whenever user failed, regardless of try number
-                print('[QuizResultScreen] Row X: percent=$percent%, highlight=$highlight');
-                return _StatsRow(
-                  attempt: 'X', 
-                  percent: percent, 
-                  highlight: highlight,
-                  isEnglish: widget.isEnglish,
-                );
-              }(),
-            ],
-          ),
+    return Column(
+      children: [
+        // Rows 1-5 for successful attempts
+        for (int i = 1; i <= 5; i++) ...[
+          () {
+            final percent = totalGames > 0 ? ((hintDistribution[i] ?? 0) / totalGames * 100).round() : 0;
+            final highlight = i == widget.hintIndex && widget.isCorrect;
+            return _StatsRow(
+              attempt: i.toString(), 
+              percent: percent, 
+              highlight: highlight,
+              isEnglish: widget.isEnglish,
+            );
+          }(),
         ],
-      ),
+        // Row X for failed attempts
+        () {
+          final percent = totalGames > 0 ? (failedCount / totalGames * 100).round() : 0;
+          final highlight = !widget.isCorrect;
+          return _StatsRow(
+            attempt: 'X', 
+            percent: percent, 
+            highlight: highlight,
+            isEnglish: widget.isEnglish,
+          );
+        }(),
+      ],
     );
   }
 
   void _showCluesDialog(BuildContext context) {
-    // Befintlig kod... (ingen ändring här)
-     // Definiera färgerna från bilden för enklare återanvändning
-    const Color dialogBackgroundColor = Color(0xFF1C1C1E); // Mörkgrå bakgrund
-    const Color primaryTextColor = Colors.white; // Vit text för rubriker
-    const Color secondaryTextColor = Color(0xFFEBEBF5); // Ljusgrå text för beskrivning
+    const Color dialogBackgroundColor = Color(0xFF1C1C1E);
+    const Color primaryTextColor = Colors.white;
+    const Color secondaryTextColor = Color(0xFFEBEBF5);
 
     showDialog(
       context: context,
@@ -368,8 +226,6 @@ class _QuizResultScreenState extends State<QuizResultScreen> {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
           ),
-
-          // ÄNDRING: Titeln är nu "Ledtrådar"
           title: Text(
             widget.isEnglish ? 'Clues' : 'Ledtrådar',
             style: GoogleFonts.ibmPlexMono(
@@ -383,37 +239,31 @@ class _QuizResultScreenState extends State<QuizResultScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                // Loopar igenom AI-ledtrådarna och bygger listan
                 ...widget.aiClues.asMap().entries.map((entry) {
                   int index = entry.key;
                   String hint = entry.value;
 
-                  // ÄNDRING: Row och Icon är borttagna.
-                  // Vi har nu en Padding direkt runt en Column.
                   return Padding(
-                    padding: const EdgeInsets.only(bottom: 24.0), // Lite mer utrymme mellan ledtrådarna
+                    padding: const EdgeInsets.only(bottom: 24.0),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // ÄNDRING: Rubriken är större (fontSize: 18)
                         Text(
                           widget.isEnglish
                               ? 'Clue ${index + 1}'
                               : 'Ledtråd ${index + 1}',
                           style: GoogleFonts.ibmPlexMono(
-                            fontSize: 18, // Ändrad från 16
+                            fontSize: 18,
                             fontWeight: FontWeight.w600,
                             color: primaryTextColor,
                           ),
                         ),
-                        const SizedBox(height: 6), // Lite mer avstånd till texten under
-
-                        // Beskrivning (själva ledtråden)
+                        const SizedBox(height: 6),
                         Text(
                           hint,
                           style: GoogleFonts.ibmPlexMono(
                             fontSize: 14,
-                            color: secondaryTextColor.withOpacity(0.7), // Ljusare grå
+                            color: secondaryTextColor.withOpacity(0.7),
                             height: 1.4,
                             fontWeight: FontWeight.w400,
                           ),
@@ -443,9 +293,38 @@ class _QuizResultScreenState extends State<QuizResultScreen> {
     );
   }
 
+  Widget _buildFactItem(String fact) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            margin: const EdgeInsets.only(top: 6, right: 10),
+            width: 6,
+            height: 6,
+            decoration: const BoxDecoration(
+              color: Colors.black54,
+              shape: BoxShape.circle,
+            ),
+          ),
+          Expanded(
+            child: Text(
+              fact,
+              style: GoogleFonts.ibmPlexMono(
+                fontSize: 14,
+                color: Colors.black.withOpacity(0.8),
+                height: 1.4,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   void _showFullScreenImage(BuildContext context) {
-    // Befintlig kod... (ingen ändring här)
-     final Widget animalInfoCard = Container(
+    final Widget animalInfoCard = Container(
       padding: const EdgeInsets.fromLTRB(16, 12, 8, 12),
       decoration: BoxDecoration(
         color: const Color(0xFFE7EFE7),
@@ -572,6 +451,17 @@ class _QuizResultScreenState extends State<QuizResultScreen> {
     );
   }
 
+  int calculateScore({required int attempts, required int timeMs, required bool solved}) {
+    if (!solved) return 0;
+    
+    int baseScore = 100;
+    int attemptPenalty = (attempts - 1) * 10;
+    int timePenalty = (timeMs ~/ 1000) ~/ 10;
+    
+    int finalScore = baseScore - attemptPenalty - timePenalty;
+    return finalScore.clamp(0, 100);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -584,7 +474,7 @@ class _QuizResultScreenState extends State<QuizResultScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Header - No back button, game is over
+                // Header
                 const SizedBox(height: 20),
 
                 // Result title
@@ -697,174 +587,212 @@ class _QuizResultScreenState extends State<QuizResultScreen> {
                       AnimatedContainer(
                         duration: const Duration(milliseconds: 300),
                         height: _isExpanded ? null : 0,
-                        // *** UPPDATERAD KOD för expanderbar del ***
-                        child: _isExpanded
-                            ? Column(
-                                children: [
-                                  // --- Description Section (befintlig) ---
-                                  if (widget.animal.description.isNotEmpty) ...[
-                                    const Divider(height: 1, color: Colors.black12),
-                                    Padding(
-                                      padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
-                                      child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            widget.isEnglish ? 'Description' : 'Beskrivning',
-                                            style: GoogleFonts.ibmPlexMono(
-                                              fontSize: 16,
-                                              fontWeight: FontWeight.w600,
-                                              color: Colors.black,
-                                            ),
-                                          ),
-                                          const SizedBox(height: 8),
-                                          Text(
-                                            widget.animal.description,
-                                            style: GoogleFonts.ibmPlexMono(
-                                              fontSize: 14, // Justerad storlek
-                                              color: Colors.black87,
-                                              height: 1.5,
-                                            ),
-                                          ),
-                                        ],
+                        child: _isExpanded ? Column(
+                          children: [
+                            if (widget.animal.description.isNotEmpty) ...[
+                              const Divider(height: 1, color: Colors.black12),
+                              Padding(
+                                padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      widget.isEnglish ? 'Description' : 'Beskrivning',
+                                      style: GoogleFonts.ibmPlexMono(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w600,
+                                        color: Colors.black,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 8),
+                                    Text(
+                                      widget.animal.description,
+                                      style: GoogleFonts.ibmPlexMono(
+                                        fontSize: 14,
+                                        color: Colors.black87,
+                                        height: 1.5,
                                       ),
                                     ),
                                   ],
-
-                                  // --- Interesting Facts Section (uppdaterad) ---
-                                  const Divider(height: 1, color: Colors.black12),
-                                  Padding(
-                                    padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          widget.isEnglish ? 'Interesting Facts' : 'Intressanta fakta',
-                                          style: GoogleFonts.ibmPlexMono(
-                                            fontSize: 16,
-                                            fontWeight: FontWeight.w600,
-                                            color: Colors.black,
-                                          ),
-                                        ),
-                                        const SizedBox(height: 12), // Ökat avstånd
-                                        // --- Laddningsindikator eller Fakta/Fallback ---
-                                        if (_isLoadingFacts)
-                                          const Center(
-                                            child: Padding( // Lite padding runt indikatorn
-                                              padding: EdgeInsets.symmetric(vertical: 20.0),
-                                              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black54),
-                                            )
-                                          )
-                                        else if (_aiFacts.isNotEmpty)
-                                          ..._aiFacts.map((fact) => _buildFactItem(fact)) // Visa AI-fakta
-                                        else if (widget.animal.hints.isNotEmpty) // Fallback till gamla hints
-                                          ...widget.animal.hints.take(3).map((hint) => _buildFactItem(hint)) // Visa max 3 gamla hints
-                                        else
-                                          Text( // Meddelande om inga fakta alls finns
-                                            widget.isEnglish ? 'No interesting facts available.' : 'Inga intressanta fakta tillgängliga.',
-                                            style: GoogleFonts.ibmPlexMono(fontSize: 13, color: Colors.black54),
-                                          ),
-                                        // --- Slut på laddning/fakta-sektion ---
-                                      ],
+                                ),
+                              ),
+                            ],
+                            if (widget.animal.hints.isNotEmpty) ...[
+                              const Divider(height: 1, color: Colors.black12),
+                              Padding(
+                                padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      widget.isEnglish ? 'Interesting Facts' : 'Intressanta fakta',
+                                      style: GoogleFonts.ibmPlexMono(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w600,
+                                        color: Colors.black,
+                                      ),
                                     ),
-                                  ),
-                                ],
-                              )
-                            : const SizedBox.shrink(),
-                         // *** SLUT PÅ UPPDATERAD KOD ***
+                                    const SizedBox(height: 8),
+                                    
+                                    // Show loading indicator or AI facts
+                                    if (_isLoadingFacts)
+                                      const Center(
+                                        child: Padding(
+                                          padding: EdgeInsets.symmetric(vertical: 20.0),
+                                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black54),
+                                        ),
+                                      )
+                                    else if (_aiFacts.isNotEmpty)
+                                      Column(
+                                        children: _aiFacts.map((fact) => Padding(
+                                          padding: const EdgeInsets.only(bottom: 8),
+                                          child: Row(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            children: [
+                                              Container(
+                                                margin: const EdgeInsets.only(top: 6, right: 8),
+                                                width: 4,
+                                                height: 4,
+                                                decoration: const BoxDecoration(
+                                                  color: Colors.black54,
+                                                  shape: BoxShape.circle,
+                                                ),
+                                              ),
+                                              Expanded(
+                                                child: Text(
+                                                  fact,
+                                                  style: GoogleFonts.ibmPlexMono(
+                                                    fontSize: 13,
+                                                    color: Colors.black87,
+                                                    height: 1.4,
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        )).toList(),
+                                      )
+                                    else if (widget.animal.hints.isNotEmpty)
+                                      Column(
+                                        children: widget.animal.hints.take(3).map((hint) => Padding(
+                                          padding: const EdgeInsets.only(bottom: 8),
+                                          child: Row(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            children: [
+                                              Container(
+                                                margin: const EdgeInsets.only(top: 6, right: 8),
+                                                width: 4,
+                                                height: 4,
+                                                decoration: const BoxDecoration(
+                                                  color: Colors.black54,
+                                                  shape: BoxShape.circle,
+                                                ),
+                                              ),
+                                              Expanded(
+                                                child: Text(
+                                                  hint,
+                                                  style: GoogleFonts.ibmPlexMono(
+                                                    fontSize: 13,
+                                                    color: Colors.black87,
+                                                    height: 1.4,
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        )).toList(),
+                                      )
+                                    else
+                                      Text(
+                                        widget.isEnglish ? 'No interesting facts available.' : 'Inga intressanta fakta tillgängliga.',
+                                        style: GoogleFonts.ibmPlexMono(fontSize: 13, color: Colors.black54),
+                                      ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ],
+                        ) : const SizedBox.shrink(),
                       ),
                     ],
                   ),
                 ),
+
                 const SizedBox(height: 24),
 
-                // Score display
-                // ... (befintlig kod, ingen ändring)
-                 if (widget.isCorrect) ...[
-                  Center(
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                      decoration: BoxDecoration(
-                        color: Colors.blue.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: Colors.blue.withOpacity(0.3)),
-                      ),
-                      child: Text(
-                        widget.isEnglish
-                            ? 'Your Score: ${calculateScore(attempts: widget.hintIndex, timeMs: widget.totalTimeMs, solved: widget.isCorrect)}/100'
-                            : 'Din poäng: ${calculateScore(attempts: widget.hintIndex, timeMs: widget.totalTimeMs, solved: widget.isCorrect)}/100',
-                        style: GoogleFonts.ibmPlexMono(
-                          color: Colors.blue,
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                        ),
+                // Score section
+                if (widget.isCorrect) ...[
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.green.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.green.withOpacity(0.3)),
+                    ),
+                    child: Text(
+                      widget.isEnglish
+                          ? 'Your Score: ${calculateScore(attempts: widget.hintIndex, timeMs: widget.totalTimeMs, solved: widget.isCorrect)}/100'
+                          : 'Din poäng: ${calculateScore(attempts: widget.hintIndex, timeMs: widget.totalTimeMs, solved: widget.isCorrect)}/100',
+                      style: GoogleFonts.ibmPlexMono(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.green[700],
                       ),
                     ),
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 24),
                 ],
 
-                // Statistics section
-                // ... (befintlig kod, ingen ändring)
-                 Center(
+                // Statistics section - Clean design matching app style
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF1F2937).withOpacity(0.3),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.white.withOpacity(0.1)),
+                  ),
                   child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        widget.isEnglish ? "today's animal statistics" : 'dagens djurs statistik',
-                    style: GoogleFonts.ibmPlexMono(
-                      color: Colors.white,
-                      fontSize: 20,
-                      fontWeight: FontWeight.w600,
-                      letterSpacing: 1.0,
-                    ),
-                      ),
-                      if (_dailyStats['isGlobal'] == true) ...[
-                        const SizedBox(height: 4),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: Colors.green.withOpacity(0.2),
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: Colors.green.withOpacity(0.5)),
-                          ),
-                          child: Text(
-                            widget.isEnglish ? '🌍 Global Data' : '🌍 Global Data',
-                            style: GoogleFonts.ibmPlexMono(
-                              color: Colors.green,
-                              fontSize: 10,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
+                        widget.isEnglish ? "Today's Statistics" : 'Dagens statistik',
+                        style: GoogleFonts.ibmPlexMono(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.white,
                         ),
-                      ],
+                      ),
+                      const SizedBox(height: 16),
+                      
+                      _isLoadingStats
+                          ? const Center(
+                              child: Padding(
+                                padding: EdgeInsets.symmetric(vertical: 20.0),
+                                child: CircularProgressIndicator(strokeWidth: 2),
+                              ),
+                            )
+                          : Column(
+                              children: [
+                                Text(
+                                  _getStatisticsText(),
+                                  style: GoogleFonts.ibmPlexMono(
+                                    fontSize: 14,
+                                    color: Colors.white70,
+                                    height: 1.4,
+                                  ),
+                                ),
+                                const SizedBox(height: 16),
+                                _buildStatisticsBars(),
+                              ],
+                            ),
                     ],
                   ),
                 ),
-                const SizedBox(height: 8),
-                Center(
-                  child: _isLoadingStats
-                    ? CircularProgressIndicator(
-                        color: Colors.white70,
-                        strokeWidth: 2,
-                      )
-                    : Text(
-                        _getStatisticsText(),
-                    textAlign: TextAlign.center,
-                    style: GoogleFonts.ibmPlexMono(color: Colors.white70, fontSize: 12),
-                  ),
-                ),
-                const SizedBox(height: 12),
 
-                // Statistics bars
-                // ... (befintlig kod, ingen ändring)
-                 _isLoadingStats
-                  ? const SizedBox(height: 100) // Placeholder while loading
-                  : _buildStatisticsBars(),
                 const SizedBox(height: 24),
 
                 // View Clues button
-                // ... (befintlig kod, ingen ändring)
-                 Align(
+                Align(
                   alignment: Alignment.centerLeft,
                   child: Material(
                     color: Colors.transparent,
@@ -900,8 +828,7 @@ class _QuizResultScreenState extends State<QuizResultScreen> {
                 ),
                 const SizedBox(height: 16),
                 // Back to home button
-                // ... (befintlig kod, ingen ändring)
-                 Align(
+                Align(
                   alignment: Alignment.centerLeft,
                   child: Material(
                     color: Colors.transparent,
@@ -910,8 +837,8 @@ class _QuizResultScreenState extends State<QuizResultScreen> {
                       onTap: () {
                         Navigator.pushAndRemoveUntil(
                           context,
-                        MaterialPageRoute(
-                          builder: (context) => const HomeScreen(),
+                          MaterialPageRoute(
+                            builder: (context) => const HomeScreen(),
                           ),
                           (route) => false,
                         );
@@ -944,7 +871,8 @@ class _QuizResultScreenState extends State<QuizResultScreen> {
                     ),
                   ),
                 ),
-                const SizedBox(height: 24),
+
+                const SizedBox(height: 32),
               ],
             ),
           ),
@@ -952,41 +880,8 @@ class _QuizResultScreenState extends State<QuizResultScreen> {
       ),
     );
   }
-
-  // *** NYTT: Hjälp-widget för att visa fakta ***
-  Widget _buildFactItem(String fact) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            margin: const EdgeInsets.only(top: 6, right: 10), // Justerad marginal
-            width: 5, // Mindre punkt
-            height: 5,
-            decoration: const BoxDecoration(
-              color: Colors.black54, // Mörkare punkt
-              shape: BoxShape.circle,
-            ),
-          ),
-          Expanded(
-            child: Text(
-              fact,
-              style: GoogleFonts.ibmPlexMono(
-                fontSize: 14, // Anpassad storlek
-                color: Colors.black.withOpacity(0.8), // Mörkare text
-                height: 1.4, // Radavstånd
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-  // *** SLUT NYTT ***
 }
 
-// _StatsRow widget (befintlig, ingen ändring)
 class _StatsRow extends StatelessWidget {
   final String attempt;
   final int percent;
@@ -1000,9 +895,8 @@ class _StatsRow extends StatelessWidget {
     required this.isEnglish,
   });
 
-   @override
+  @override
   Widget build(BuildContext context) {
-    // Define colors based on highlight state
     final textColor = highlight ? Colors.white : Colors.white60;
     final barColor = highlight ? const Color(0xFF10B981) : const Color(0xFF6B7280);
     
@@ -1016,7 +910,7 @@ class _StatsRow extends StatelessWidget {
       ),
       child: Row(
         children: [
-          // Attempt number - compact
+          // Attempt number
           SizedBox(
             width: 20,
             child: Text(
@@ -1030,7 +924,7 @@ class _StatsRow extends StatelessWidget {
           ),
           const SizedBox(width: 8),
           
-          // Progress bar - compact
+          // Progress bar
           Expanded(
             child: Container(
               height: 6,
@@ -1052,7 +946,7 @@ class _StatsRow extends StatelessWidget {
           ),
           const SizedBox(width: 8),
           
-          // Percentage - compact
+          // Percentage
           SizedBox(
             width: 35,
             child: Text(

@@ -21,11 +21,12 @@ class ApiService {
   // Cache for species data to avoid repeated API calls
   static final Map<int, AnimalData> _speciesCache = {};
   static List<AnimalData>? _allSpeciesCache;
+  static bool? _lastLanguageUsed; // Track last language used for cache
 
   ApiService({http.Client? client}) : _client = client ?? http.Client();
 
   /// Get today's animal (same for all players in production, random in test mode)
-  Future<AnimalData> getRandomAnimal() async {
+  Future<AnimalData> getRandomAnimal({bool isEnglish = false}) async {
     // Check if we're in test mode
     final isTestMode = await _isTestMode();
     print('[ApiService] Test mode check: $isTestMode');
@@ -37,12 +38,12 @@ class ApiService {
         return await getRandomAnimalFromAPI();
       } catch (e) {
         print('[ApiService] API failed, using test animals: $e');
-        return _getTestAnimal();
+        return _getTestAnimal(isEnglish: isEnglish);
       }
     } else {
       // Production mode: return today's animal (same for all players)
       print('[ApiService] Using production mode - returning today\'s animal');
-      return await _getTodaysAnimal();
+      return await _getTodaysAnimal(isEnglish: isEnglish);
     }
   }
 
@@ -59,7 +60,7 @@ class ApiService {
   }
 
   /// Get today's animal (same for all players)
-  Future<AnimalData> _getTodaysAnimal() async {
+  Future<AnimalData> _getTodaysAnimal({bool isEnglish = false}) async {
     final today = DateTime.now();
     final dayKey = '${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}';
     
@@ -68,7 +69,7 @@ class ApiService {
     final random = math.Random(dayHash);
     
     try {
-      final allSpecies = await _getAllSpecies();
+      final allSpecies = await _getAllSpecies(isEnglish: isEnglish);
       if (allSpecies.isNotEmpty) {
         final selectedAnimal = allSpecies[random.nextInt(allSpecies.length)];
         print('[ApiService] Today\'s animal (${dayKey}): ${selectedAnimal.name}');
@@ -80,7 +81,7 @@ class ApiService {
       }
     } catch (e) {
       print('[ApiService] Failed to get today\'s animal, using test animal: $e');
-      return _getTestAnimal();
+      return _getTestAnimal(isEnglish: isEnglish);
     }
   }
 
@@ -126,14 +127,22 @@ class ApiService {
   }
 
   /// Get a test animal when API is unavailable
-  AnimalData _getTestAnimal() {
+  AnimalData _getTestAnimal({bool isEnglish = false}) {
     print('[ApiService] Using test animal fallback');
     final testAnimals = [
       AnimalData(
-        name: 'varg',
+        name: isEnglish ? 'Wolf' : 'varg',
         scientificName: 'Canis lupus',
-        description: 'Vargen är ett rovdjur som lever i flockar och jagar tillsammans.',
-        hints: [
+        description: isEnglish 
+          ? 'The wolf is a predator that lives in packs and hunts together.'
+          : 'Vargen är ett rovdjur som lever i flockar och jagar tillsammans.',
+        hints: isEnglish ? [
+          'This animal lives in packs and hunts together',
+          'It has sharp teeth and is a predator',
+          'It can howl and communicate over long distances',
+          'It is known for its intelligence and social structure',
+          'It is Sweden\'s largest predator'
+        ] : [
           'Detta djur lever i flockar och jagar tillsammans',
           'Det har vassa tänder och är ett rovdjur',
           'Det kan yla och kommunicera över långa avstånd',
@@ -143,10 +152,18 @@ class ApiService {
         imageUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/5/5a/Canis_lupus_laying_in_grass.jpg/800px-Canis_lupus_laying_in_grass.jpg',
       ),
       AnimalData(
-        name: 'älg',
+        name: isEnglish ? 'Moose' : 'älg',
         scientificName: 'Alces alces',
-        description: 'Älgen är Sveriges största hjortdjur och lever i skogar.',
-        hints: [
+        description: isEnglish 
+          ? 'The moose is Sweden\'s largest deer and lives in forests.'
+          : 'Älgen är Sveriges största hjortdjur och lever i skogar.',
+        hints: isEnglish ? [
+          'This animal is Sweden\'s largest deer',
+          'It has large antlers that it sheds every year',
+          'It lives in forests and eats plants',
+          'It can be dangerous to meet on the road',
+          'It is a very large animal with long legs'
+        ] : [
           'Detta djur är Sveriges största hjortdjur',
           'Det har stora horn som den kastar varje år',
           'Det lever i skogar och äter växter',
@@ -156,10 +173,18 @@ class ApiService {
         imageUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/8/8a/Moose_superior.jpg/800px-Moose_superior.jpg',
       ),
       AnimalData(
-        name: 'räv',
+        name: isEnglish ? 'Fox' : 'räv',
         scientificName: 'Vulpes vulpes',
-        description: 'Räven är en smidig rovdjur som lever i skogar och på öppna fält.',
-        hints: [
+        description: isEnglish 
+          ? 'The fox is a nimble predator that lives in forests and open fields.'
+          : 'Räven är en smidig rovdjur som lever i skogar och på öppna fält.',
+        hints: isEnglish ? [
+          'This animal has a bushy tail',
+          'It is known for its cunning',
+          'It has red-brown fur and pointed ears',
+          'It hunts small animals and also eats berries',
+          'It is a nimble predator'
+        ] : [
           'Detta djur har en buskig svans',
           'Det är känd för sin listighet',
           'Det har rödbrun päls och spetsiga öron',
@@ -432,7 +457,14 @@ class ApiService {
 
 
   /// Get all species data once and cache it for fast searching
-  Future<List<AnimalData>> _getAllSpecies() async {
+  Future<List<AnimalData>> _getAllSpecies({bool isEnglish = false}) async {
+    // Clear cache if language changed
+    if (_lastLanguageUsed != null && _lastLanguageUsed != isEnglish) {
+      print('[ApiService] Language changed, clearing cache');
+      _allSpeciesCache = null;
+      _speciesCache.clear();
+    }
+    
     if (_allSpeciesCache != null) {
       print('[ApiService] Using cached species data');
       return _allSpeciesCache!;
@@ -442,8 +474,9 @@ class ApiService {
     
     try {
        // Get all mammal species first (using the same endpoint as random animal)
+       final culture = isEnglish ? 'en_GB' : 'sv_SE';
        final mammalListUri = Uri.parse(
-         '${AppConstants.taxonServiceUrl}/taxa/${AppConstants.mammalTaxonId}/filteredSelected?taxonCategories=17&onlyMainChildren=false',
+         '${AppConstants.taxonServiceUrl}/taxa/${AppConstants.mammalTaxonId}/filteredSelected?taxonCategories=17&onlyMainChildren=false&culture=$culture',
        );
       
       final mammalListResponse = await _client.get(
@@ -479,7 +512,7 @@ class ApiService {
       // No manual exclusions needed - server already filters by taxonCategories=17
       
       // Load all species data in parallel (much faster)
-      final futures = taxonIds.map((taxaId) => _getSpeciesData(taxaId));
+      final futures = taxonIds.map((taxaId) => _getSpeciesData(taxaId, isEnglish: isEnglish));
       final results = await Future.wait(futures, eagerError: false);
       
       // Filter out null results and ensure we only have species
@@ -492,6 +525,7 @@ class ApiService {
       final allSpecies = allAnimals;
       
       _allSpeciesCache = allSpecies;
+      _lastLanguageUsed = isEnglish; // Track the language used for this cache
       
       print('[ApiService] Loaded ${allSpecies.length} species into cache (only individual species, no families/genera)');
       
@@ -510,7 +544,7 @@ class ApiService {
   }
   
   /// Get individual species data (with caching)
-  Future<AnimalData?> _getSpeciesData(int taxaId) async {
+  Future<AnimalData?> _getSpeciesData(int taxaId, {bool isEnglish = false}) async {
     if (_speciesCache.containsKey(taxaId)) {
       return _speciesCache[taxaId];
     }
@@ -542,7 +576,8 @@ class ApiService {
                 ? first['speciesData'] as Map<String, dynamic>
                 : null;
 
-        final String name = (speciesData?['swedishName'] ?? first?['swedishName'] ?? first?['name'] ?? '')
+        // Get the name based on culture (API will return English or Swedish based on culture parameter)
+        final String displayName = (speciesData?['swedishName'] ?? first?['swedishName'] ?? first?['name'] ?? '')
             .toString();
         final String sci = (speciesData?['scientificName'] ?? first?['scientificName'] ?? '')
             .toString();
@@ -552,27 +587,27 @@ class ApiService {
         final String ecology = (speciesFactText?['ecology'] ?? '').toString();
         final String characteristic = (speciesFactText?['characteristic'] ?? '').toString();
         
-        // Create basic hints
+        // Create basic hints based on language
         final List<String> hints = <String>[];
-        if (name.isNotEmpty) {
-          hints.add('Svenskt namn: $name');
+        if (displayName.isNotEmpty) {
+          hints.add(isEnglish ? 'Name: $displayName' : 'Svenskt namn: $displayName');
         }
         if (sci.isNotEmpty) {
-          hints.add('Vetenskapligt namn: $sci');
+          hints.add(isEnglish ? 'Scientific name: $sci' : 'Vetenskapligt namn: $sci');
         }
         if (ecology.isNotEmpty) {
           final ecologySnippet = ecology.length > 100 
               ? ecology.substring(0, 100) + '...'
               : ecology;
-          hints.add('Ekologi: $ecologySnippet');
+          hints.add(isEnglish ? 'Ecology: $ecologySnippet' : 'Ekologi: $ecologySnippet');
         }
         
         // Don't fetch images during bulk loading - do it lazily when needed
         final animalData = AnimalData(
-          name: name.isNotEmpty ? name : 'Taxon $taxaId',
+          name: displayName.isNotEmpty ? displayName : 'Taxon $taxaId',
           scientificName: sci,
           description: characteristic.isNotEmpty ? characteristic : '',
-          hints: hints.isNotEmpty ? hints : ['Ingen information tillgänglig'],
+          hints: hints.isNotEmpty ? hints : [isEnglish ? 'No information available' : 'Ingen information tillgänglig'],
           imageUrl: '', // Will be fetched when needed
         );
         
@@ -593,7 +628,7 @@ class ApiService {
       print('[ApiService] Fast searching for species with term: "$searchTerm"');
       
       // Get all species (cached after first call)
-      final allSpecies = await _getAllSpecies();
+      final allSpecies = await _getAllSpecies(isEnglish: isEnglish);
       
       // Filter by search term (very fast - no API calls)
       final searchTermLower = searchTerm.toLowerCase().trim();
@@ -786,6 +821,7 @@ class ApiService {
   static void clearSpeciesCache() {
     _speciesCache.clear();
     _allSpeciesCache = null;
+    _lastLanguageUsed = null;
     print('[ApiService] Species cache cleared');
   }
 

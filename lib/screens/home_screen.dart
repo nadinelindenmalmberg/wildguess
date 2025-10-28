@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../services/api_service.dart';
 import '../models/animal_data.dart';
 import '../utils/translation_extension.dart';
@@ -20,7 +21,7 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  bool isEnglish = false;
+  bool isEnglish = true; // Default to English
   late Future<AnimalData> _animalFuture;
   bool _hasPlayedToday = false;
   bool _isLoadingPlayStatus = true;
@@ -28,8 +29,32 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
+    _loadLanguage();
     _animalFuture = _loadRandomAnimal();
     _checkPlayStatus();
+  }
+
+  Future<void> _loadLanguage() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final savedLanguage = prefs.getBool('isEnglish');
+      if (savedLanguage != null) {
+        setState(() {
+          isEnglish = savedLanguage;
+        });
+      }
+    } catch (e) {
+      print('Error loading language preference: $e');
+    }
+  }
+
+  Future<void> _saveLanguage() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool('isEnglish', isEnglish);
+    } catch (e) {
+      print('Error saving language preference: $e');
+    }
   }
 
   Future<void> _checkPlayStatus() async {
@@ -43,12 +68,14 @@ class _HomeScreenState extends State<HomeScreen> {
   void _toggleLanguage() {
     setState(() {
       isEnglish = !isEnglish;
+      _animalFuture = _loadRandomAnimal(); // Reload animal with new language
     });
+    _saveLanguage();
   }
 
   Future<AnimalData> _loadRandomAnimal() async {
     final apiService = ApiService();
-    return await apiService.getRandomAnimal();
+    return await apiService.getRandomAnimal(isEnglish: isEnglish);
   }
 
   void _refreshAnimal() {
@@ -72,16 +99,19 @@ class _HomeScreenState extends State<HomeScreen> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(
-                      isEnglish ? 'Wild Guess' : 'Vild Gissning',
-                      style: GoogleFonts.ibmPlexMono(
-                        fontSize: 28,
-                        fontWeight: FontWeight.w700,
-                        color: Colors.white,
-                        letterSpacing: -0.5,
+                    Expanded(
+                      child: Text(
+                        isEnglish ? 'Wild Guess' : 'Vild Gissning',
+                        style: GoogleFonts.ibmPlexMono(
+                          fontSize: 28,
+                          fontWeight: FontWeight.w700,
+                          color: Colors.white,
+                          letterSpacing: -0.5,
+                        ),
                       ),
                     ),
                     Row(
+                      mainAxisSize: MainAxisSize.min,
                       children: [
                         // Test Screen Button (Debug)
                         Container(
