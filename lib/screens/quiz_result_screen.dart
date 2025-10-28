@@ -356,103 +356,124 @@ void _showCluesDialog(BuildContext context) {
     );
   }
 
-  void _showFullScreenImage(BuildContext context) {
+void _showFullScreenImage(BuildContext context) {
+    final Widget animalInfoCard = Container(
+      padding: const EdgeInsets.fromLTRB(16, 12, 8, 12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFE7EFE7),
+        borderRadius: const BorderRadius.only(
+          topLeft: Radius.circular(16),
+          topRight: Radius.circular(16),
+        ),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  widget.animal.name,
+                  style: GoogleFonts.ibmPlexMono(
+                    color: Colors.black,
+                    fontSize: 20,
+                    fontWeight: FontWeight.w600,
+                  ),
+                  textAlign: TextAlign.left,
+                ),
+                if (widget.animal.scientificName.isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    widget.animal.scientificName,
+                    style: GoogleFonts.ibmPlexMono(
+                      color: Colors.black87,
+                      fontSize: 14,
+                      fontStyle: FontStyle.italic,
+                    ),
+                    textAlign: TextAlign.left,
+                  ),
+                ],
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          GestureDetector(
+            onTap: () => Navigator.of(context).pop(),
+            child: Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.black.withOpacity(0.1),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.close,
+                color: Colors.black87,
+                size: 20,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+
     showDialog(
       context: context,
       barrierDismissible: true,
       builder: (BuildContext context) {
         return Dialog(
           backgroundColor: Colors.transparent,
+          insetPadding: EdgeInsets.zero,
           child: Stack(
             children: [
-              // Full screen image
+              GestureDetector(
+                onTap: () => Navigator.of(context).pop(),
+                child: Container(
+                  color: Colors.transparent,
+                ),
+              ),
               Center(
                 child: InteractiveViewer(
                   minScale: 0.5,
                   maxScale: 3.0,
-                  child: Image.network(
-                    widget.animal.imageUrl,
-                    fit: BoxFit.contain,
-                    loadingBuilder: (context, child, loadingProgress) {
-                      if (loadingProgress == null) return child;
-                      return Container(
-                        width: 300,
-                        height: 300,
-                        color: Colors.black54,
-                        child: const Center(
-                          child: CircularProgressIndicator(color: Colors.white),
-                        ),
-                      );
-                    },
-                    errorBuilder: (context, error, stackTrace) {
-                      return Container(
-                        width: 300,
-                        height: 300,
-                        color: Colors.black54,
-                        child: const Center(
-                          child: Icon(Icons.pets, size: 64, color: Colors.white),
-                        ),
-                      );
-                    },
-                  ),
-                ),
-              ),
-              // Close button
-              Positioned(
-                top: 50,
-                right: 20,
-                child: GestureDetector(
-                  onTap: () => Navigator.of(context).pop(),
-                  child: Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Colors.black54,
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(
-                      Icons.close,
-                      color: Colors.white,
-                      size: 24,
-                    ),
-                  ),
-                ),
-              ),
-              // Animal name overlay
-              Positioned(
-                bottom: 50,
-                left: 20,
-                right: 20,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                  decoration: BoxDecoration(
-                    color: Colors.black54,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        widget.animal.name,
-                        style: GoogleFonts.ibmPlexMono(
-                          color: Colors.white,
-                          fontSize: 18,
-                          fontWeight: FontWeight.w600,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                      if (widget.animal.scientificName.isNotEmpty) ...[
-                        const SizedBox(height: 4),
-                        Text(
-                          widget.animal.scientificName,
-                          style: GoogleFonts.ibmPlexMono(
-                            color: Colors.white70,
-                            fontSize: 14,
-                            fontStyle: FontStyle.italic,
+                  child: IntrinsicWidth(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        animalInfoCard,
+                        ClipRRect(
+                          borderRadius: const BorderRadius.only(
+                            bottomLeft: Radius.circular(16),
+                            bottomRight: Radius.circular(16),
                           ),
-                          textAlign: TextAlign.center,
+                          child: Image.network(
+                            widget.animal.imageUrl,
+                            fit: BoxFit.contain,
+                            loadingBuilder: (context, child, loadingProgress) {
+                              if (loadingProgress == null) return child;
+                              return Container(
+                                height: 300,
+                                color: Colors.black54,
+                                child: const Center(
+                                  child: CircularProgressIndicator(color: Colors.white),
+                                ),
+                              );
+                            },
+                            errorBuilder: (context, error, stackTrace) {
+                              return Container(
+                                height: 300,
+                                color: Colors.black54,
+                                child: const Center(
+                                  child: Icon(Icons.pets, size: 64, color: Colors.white),
+                                ),
+                              );
+                            },
+                          ),
                         ),
                       ],
-                    ],
+                    ),
                   ),
                 ),
               ),
