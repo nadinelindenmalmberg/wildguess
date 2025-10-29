@@ -242,14 +242,6 @@ class _QuizResultScreenState extends State<QuizResultScreen> {
     // If the user failed, calculate the percentage of failed attempts instead
     final failedPercentage = totalGames > 0 ? (failedCount / totalGames * 100).round() : 0;
     
-    print('DEBUG STATS TEXT:');
-    print('  widget.isEnglish: ${widget.isEnglish}');
-    print('  widget.hintIndex: ${widget.hintIndex}');
-    print('  widget.isCorrect: ${widget.isCorrect}');
-    print('  hintDistribution: $hintDistribution');
-    print('  currentHintCount: $currentHintCount');
-    print('  totalGames: $totalGames');
-    print('  calculated percentage: $percentage');
 
     // Use the correct percentage based on success/failure
     final displayPercentage = widget.isCorrect ? percentage : failedPercentage;
@@ -336,7 +328,6 @@ class _QuizResultScreenState extends State<QuizResultScreen> {
           () {
             final percent = totalGames > 0 ? ((hintDistribution[i] ?? 0) / totalGames * 100).round() : 0;
             final highlight = i == widget.hintIndex && widget.isCorrect;
-            print('DEBUG BAR $i: count=${hintDistribution[i] ?? 0}, percent=$percent, highlight=$highlight');
             return _StatsRow(
               attempt: i.toString(), 
               percent: percent, 

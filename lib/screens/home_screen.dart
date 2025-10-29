@@ -110,73 +110,17 @@ class _HomeScreenState extends State<HomeScreen> {
                         ),
                       ),
                     ),
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        // Test Screen Button (Debug)
-                        Container(
-                          decoration: BoxDecoration(
-                            color: Colors.red.withOpacity(0.08),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: IconButton(
-                            icon: const Icon(Icons.bug_report, size: 20),
-                            onPressed: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => const TestScreen(),
-                                ),
-                              );
-                            },
-                            color: Colors.red,
-                            style: IconButton.styleFrom(
-                              padding: const EdgeInsets.all(8),
-                              minimumSize: const Size(40, 40),
-                            ),
-                          ),
+                    // Language Toggle
+                    Container(
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.08),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: IconButton(
+                        icon: Icon(
+                          isEnglish ? Icons.language : Icons.translate,
+                          size: 20,
                         ),
-                        const SizedBox(width: 8),
-                        // Clear Daily Play Button (Debug)
-                        Container(
-                          decoration: BoxDecoration(
-                            color: Colors.orange.withOpacity(0.08),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: IconButton(
-                            icon: const Icon(Icons.refresh, size: 20),
-                            onPressed: () async {
-                              await DailyPlayService.clearDailyPlay();
-                              _checkPlayStatus();
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text(
-                                    isEnglish ? 'Daily play cleared!' : 'Dagligt spel rensat!',
-                                    style: GoogleFonts.ibmPlexMono(),
-                                  ),
-                                  backgroundColor: Colors.green,
-                                ),
-                              );
-                            },
-                            color: Colors.orange,
-                            style: IconButton.styleFrom(
-                              padding: const EdgeInsets.all(8),
-                              minimumSize: const Size(40, 40),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        // Language Toggle
-                        Container(
-                          decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.08),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: IconButton(
-                            icon: Icon(
-                              isEnglish ? Icons.language : Icons.translate,
-                              size: 20,
-                            ),
                             onPressed: _toggleLanguage,
                             color: Colors.white,
                             style: IconButton.styleFrom(

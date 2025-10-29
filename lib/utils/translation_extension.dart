@@ -8,20 +8,20 @@ extension TranslationExtension on String {
     try {
       // Using MyMemory API (free translation service)
       final url = Uri.parse(
-        'https://api.mymemory.translated.net/get?q=${Uri.encodeComponent(this)}&langpair=sv|en'
-      );
-      
+          'https://api.mymemory.translated.net/get?q=${Uri.encodeComponent(this)}&langpair=sv|en');
+
       final response = await http.get(url);
-      
+
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
-        final translatedText = data['responseData']['translatedText'] as String?;
-        
+        final translatedText =
+            data['responseData']['translatedText'] as String?;
+
         if (translatedText != null && translatedText.isNotEmpty) {
           return translatedText;
         }
       }
-      
+
       // Fallback: return original text if translation fails
       return this;
     } catch (e) {
@@ -29,7 +29,7 @@ extension TranslationExtension on String {
       return this;
     }
   }
-  
+
   /// Simple offline translation for common Swedish words
   String translateOffline() {
     final translations = {
@@ -69,19 +69,22 @@ extension TranslationExtension on String {
       'Igelkott': 'Hedgehog',
       'Mullvad': 'Mole',
       'Nordens största hjortdjur': 'Northern Europe\'s largest deer',
-      'karakteristiska horn som formar en skopa': 'characteristic antlers that form a scoop',
+      'karakteristiska horn som formar en skopa':
+          'characteristic antlers that form a scoop',
       'lever i skogar och myrar': 'lives in forests and marshes',
       'växtätare som äter blad och bark': 'herbivore that eats leaves and bark',
       'kan väga upp till 700kg': 'can weigh up to 700kg',
       'karakteristisk rödbrun päls': 'characteristic reddish-brown fur',
       'rovdjur som jagar små däggdjur': 'predator that hunts small mammals',
-      'kan anpassa sig till olika miljöer': 'can adapt to different environments',
+      'kan anpassa sig till olika miljöer':
+          'can adapt to different environments',
       'buskig svans': 'bushy tail',
       'aktivt både dag och natt': 'active both day and night',
       'Sveriges största rovdjur': 'Sweden\'s largest predator',
       'kraftig kropp och tjock päls': 'strong body and thick fur',
       'lever i skogar i norra Sverige': 'lives in forests in northern Sweden',
-      'allätare och äter bär, fisk och små djur': 'omnivore that eats berries, fish and small animals',
+      'allätare och äter bär, fisk och små djur':
+          'omnivore that eats berries, fish and small animals',
       'går i ide under vintern': 'hibernates during winter',
       'lever i flockar': 'lives in packs',
       'rovdjur som jagar i grupp': 'predator that hunts in groups',
@@ -90,17 +93,18 @@ extension TranslationExtension on String {
       'Europas största rovfåglar': 'Europe\'s largest birds of prey',
       'imponerande vingspann': 'impressive wingspan',
       'jagar små däggdjur och fåglar': 'hunts small mammals and birds',
-      'bygger stora bon i träd eller på klippor': 'builds large nests in trees or on cliffs',
+      'bygger stora bon i träd eller på klippor':
+          'builds large nests in trees or on cliffs',
       'skarpa klor och näbb': 'sharp claws and beak',
     };
-    
+
     return translations[this] ?? this;
   }
-  
+
   /// Get translated animal name based on language preference
   String getTranslatedAnimalName(bool isEnglish) {
     if (isEnglish) {
-      return this.translateOffline();
+      return translateOffline();
     }
     return this;
   }

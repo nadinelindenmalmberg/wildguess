@@ -125,12 +125,9 @@ class HistoryService {
     try {
       // First try to get from database
       final dbHistory = await _getFromDatabase();
-      print('DEBUG HISTORY: Database returned ${dbHistory.length} records');
-      if (dbHistory.isNotEmpty) {
-        return dbHistory;
-      }
-      
-      print('DEBUG HISTORY: Database empty, falling back to local storage');
+        if (dbHistory.isNotEmpty) {
+          return dbHistory;
+        }
       // Fallback to local storage
       return await _getFromLocal();
     } catch (e) {
@@ -326,7 +323,6 @@ class HistoryService {
   static Future<void> clearLocalCache() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_historyKey);
-    print('DEBUG HISTORY: Local cache cleared');
   }
   
   /// Get history from database only (no local fallback)
@@ -348,12 +344,10 @@ class HistoryService {
           final convertedScore = await _convertDailyScoreToGameHistory(score);
           convertedScores.add(convertedScore);
         }
-        print('DEBUG HISTORY: Database-only mode returned ${convertedScores.length} records from daily_scores');
         
         return convertedScores;
       }
       
-      print('DEBUG HISTORY: Database-only mode returned empty');
       return [];
     } catch (e) {
       print('Error loading from database only: $e');
