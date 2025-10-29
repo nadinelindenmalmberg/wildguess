@@ -943,7 +943,7 @@ class _QuizScreenState extends State<QuizScreen> {
             animal: widget.animal,
             isEnglish: widget.isEnglish,
             isCorrect: _isCorrect,
-            hintIndex: _isCorrect ? _currentLevel : _currentLevel, // Use actual current level for both success and failure
+            hintIndex: _currentLevel, // Both success and failure use current level (hints used)
             totalHints: widget.totalQuestions,
             aiClues: _aiClues,
             totalTimeMs: totalTimeMs,

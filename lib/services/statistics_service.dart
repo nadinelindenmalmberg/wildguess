@@ -134,21 +134,17 @@ class StatisticsService {
           final totalGames = res['total_games'] as int? ?? 0;
           
           // Parse hint distribution from the response
+          // RPC function returns percentages, so convert back to counts
           for (int i = 1; i <= 5; i++) {
-            hintDistribution[i] = res['hint_$i'] as int? ?? 0;
+            final percentage = res['hint_$i'] as int? ?? 0;
+            hintDistribution[i] = totalGames > 0 ? (percentage * totalGames / 100).round() : 0;
           }
           
-          // Calculate percentages
-          final hintPercentages = <int, int>{};
-          for (int i = 1; i <= 5; i++) {
-            hintPercentages[i] = totalGames > 0 ? 
-              ((hintDistribution[i] ?? 0) / totalGames * 100).round() : 0;
-          }
-          
-          print('RPC stats - totalGames: $totalGames, hintPercentages: $hintPercentages');
+          print('RPC stats - totalGames: $totalGames, hintPercentages: ${res['hint_1']}, ${res['hint_2']}, ${res['hint_3']}, ${res['hint_4']}, ${res['hint_5']}');
+          print('Converted to counts: $hintDistribution');
           
           return {
-            'hintDistribution': hintPercentages,
+            'hintDistribution': hintDistribution, // raw counts
             'failedCount': failedCount,
             'totalGames': totalGames,
             'isLocal': false,
@@ -184,17 +180,10 @@ class StatisticsService {
         
         final failedCount = scores.where((score) => score['solved'] == false).length;
         
-        // Calculate percentages
-        final hintPercentages = <int, int>{};
-        for (int i = 1; i <= 5; i++) {
-          hintPercentages[i] = totalGames > 0 ? 
-            ((hintDistribution[i] ?? 0) / totalGames * 100).round() : 0;
-        }
-        
-        print('Direct query stats - totalGames: $totalGames, hintPercentages: $hintPercentages');
+        print('Direct query stats - totalGames: $totalGames, hintCounts: $hintDistribution');
         
         return {
-          'hintDistribution': hintPercentages,
+          'hintDistribution': hintDistribution, // raw counts
           'failedCount': failedCount,
           'totalGames': totalGames,
           'isLocal': false,
@@ -220,24 +209,38 @@ class StatisticsService {
         return globalStats;
       }
       
-      // If no global data available, return default statistics
-      final defaultDistribution = {1: 8, 2: 11, 3: 52, 4: 20, 5: 9};
+      // If no global data available, return default statistics (use counts with totalGames=100)
+      final defaultPercentages = {1: 8, 2: 11, 3: 52, 4: 20, 5: 9};
+      final defaultCounts = <int, int>{
+        1: defaultPercentages[1]!,
+        2: defaultPercentages[2]!,
+        3: defaultPercentages[3]!,
+        4: defaultPercentages[4]!,
+        5: defaultPercentages[5]!,
+      };
       return {
-        'percentage': defaultDistribution[hintIndex] ?? 0,
-        'totalGames': 100, // Show some realistic total
-        'hintDistribution': defaultDistribution,
-        'failedCount': 15, // Show some failed attempts
+        'percentage': defaultPercentages[hintIndex] ?? 0,
+        'totalGames': 100,
+        'hintDistribution': defaultCounts, // counts
+        'failedCount': 15,
         'isLocal': false,
         'isDefault': true,
       };
     } catch (e) {
       print('Error calculating daily statistics: $e');
-      // Return default statistics if error
-      final defaultDistribution = {1: 8, 2: 11, 3: 52, 4: 20, 5: 9};
+      // Return default statistics if error (counts with totalGames=100)
+      final defaultPercentages = {1: 8, 2: 11, 3: 52, 4: 20, 5: 9};
+      final defaultCounts = <int, int>{
+        1: defaultPercentages[1]!,
+        2: defaultPercentages[2]!,
+        3: defaultPercentages[3]!,
+        4: defaultPercentages[4]!,
+        5: defaultPercentages[5]!,
+      };
       return {
-        'percentage': defaultDistribution[hintIndex] ?? 0,
-        'totalGames': 0,
-        'hintDistribution': defaultDistribution,
+        'percentage': defaultPercentages[hintIndex] ?? 0,
+        'totalGames': 100,
+        'hintDistribution': defaultCounts,
         'failedCount': 0,
         'isLocal': false,
         'isDefault': true,

@@ -34,7 +34,11 @@ class _HistoryScreenState extends State<HistoryScreen> {
 
  Future<void> _loadHistory() async {
    try {
-     final history = await HistoryService.getGameHistory();
+     // Clear local cache first to force database-only mode
+     await HistoryService.clearLocalCache();
+     
+     // Use database-only method to avoid local fallback
+     final history = await HistoryService.getGameHistoryFromDatabaseOnly();
      final stats = await HistoryService.getStatistics();
 
 

@@ -30,6 +30,89 @@ class _AnimalDetailScreenState extends State<AnimalDetailScreen> {
     _loadAiFacts();
   }
 
+  String _translateDescription(String swedishDescription) {
+    // Simple translation of common Swedish animal description terms to English
+    String translated = swedishDescription;
+    
+    // Common Swedish to English translations for animal descriptions
+    final translations = {
+      'Längd:': 'Length:',
+      'kropp': 'body',
+      'svans': 'tail',
+      'mankhöjd': 'shoulder height',
+      'Vikt': 'Weight',
+      'hanar': 'males',
+      'honor': 'females',
+      'kan undantagsvis väga': 'can exceptionally weigh',
+      'Pälsen': 'The fur',
+      'är vanligen': 'is usually',
+      'rödbrun': 'reddish-brown',
+      'till': 'to',
+      'rostbrun': 'rust-red',
+      'med': 'with',
+      'stor': 'large',
+      'vit': 'white',
+      'halsfläck': 'throat patch',
+      'buk': 'belly',
+      'yvig': 'bushy',
+      'gråsvart': 'grayish-black',
+      'svanstipp': 'tail tip',
+      'nedre hälften': 'lower half',
+      'benen': 'legs',
+      'svarta': 'black',
+      'Även': 'Also',
+      'ansiktet': 'the face',
+      'har': 'has',
+      'teckningar': 'markings',
+      'Det finns': 'There is',
+      'en hel del variation': 'a lot of variation',
+      'i den röda färgen': 'in the red color',
+      'individer': 'individuals',
+      'som är mer': 'that are more',
+      'gråbruna': 'grayish-brown',
+      'Hos några': 'In some',
+      's.k.': 'so-called',
+      'korsrävar': 'cross foxes',
+      'är mitten': 'is the middle',
+      'lever': 'lives',
+      'i': 'in',
+      'skogar': 'forests',
+      'och': 'and',
+      'på': 'on',
+      'öppna fält': 'open fields',
+      'ett': 'a',
+      'rovdjur': 'predator',
+      'smidig': 'nimble',
+      'hjortdjur': 'deer',
+      'största': 'largest',
+      'Sveriges': 'Sweden\'s',
+      'stora': 'large',
+      'horn': 'antlers',
+      'som': 'that',
+      'den': 'it',
+      'kastar': 'sheds',
+      'varje år': 'every year',
+      'äter': 'eats',
+      'växter': 'plants',
+      'kan vara farligt': 'can be dangerous',
+      'att möta': 'to meet',
+      'på vägen': 'on the road',
+      'mycket': 'very',
+      'stort': 'large',
+      'djur': 'animal',
+      'med': 'with',
+      'långa': 'long',
+      'ben': 'legs',
+    };
+    
+    // Apply translations
+    translations.forEach((swedish, english) {
+      translated = translated.replaceAll(swedish, english);
+    });
+    
+    return translated;
+  }
+
   @override
   void dispose() {
     _aiClueService.dispose();
@@ -149,27 +232,6 @@ class _AnimalDetailScreenState extends State<AnimalDetailScreen> {
                   ],
                   const SizedBox(height: 24),
 
-                  // Description Section
-                  if (widget.animal.description.isNotEmpty) ...[
-                    Text(
-                      widget.isEnglish ? 'Description' : 'Beskrivning',
-                      style: GoogleFonts.ibmPlexMono(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.black87, // Dark text
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      widget.animal.description,
-                      style: GoogleFonts.ibmPlexMono(
-                        fontSize: 15,
-                        color: Colors.black.withOpacity(0.8), // Dark text
-                        height: 1.5,
-                      ),
-                    ),
-                    const SizedBox(height: 24),
-                  ],
 
                   // AI Facts Section (replaces hints)
                   Text(
