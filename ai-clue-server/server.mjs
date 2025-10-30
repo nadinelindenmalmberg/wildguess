@@ -66,7 +66,9 @@ app.post('/clues', async (req, res) => {
     if (!animalName || typeof animalName !== 'string') return res.status(400).json({ error: 'animalName required' });
 
     const language = isEnglish ? 'English' : 'Swedish';
-    const cacheKey = `${animalName}::${scientificName || ''}::${language}`;
+    // Include day key so clues are fixed for everyone for the current day
+    const dayKey = new Date().toISOString().slice(0, 10); // YYYY-MM-DD (UTC)
+    const cacheKey = `${dayKey}::${animalName}::${scientificName || ''}::${language}`;
     if (clueCache.has(cacheKey)) return res.json({ clues: clueCache.get(cacheKey) });
 
     const system = [
@@ -122,7 +124,11 @@ Return ONLY a JSON array of 5 strings.
 
     // cache + return
     clueCache.set(cacheKey, clues);
-    setTimeout(() => clueCache.delete(cacheKey), 3_600_000);
+    // Expire cache at next UTC midnight (ensures 24h max and resets with day change)
+    const now = new Date();
+    const nextUtcMidnight = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1, 0, 0, 0, 0));
+    const msUntilNextUtcMidnight = nextUtcMidnight.getTime() - now.getTime();
+    setTimeout(() => clueCache.delete(cacheKey), Math.max(1, msUntilNextUtcMidnight));
 
     res.json({ clues });
   } catch (err) {
