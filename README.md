@@ -76,13 +76,12 @@ Edit `lib/translation_extension.dart` to add more languages.
 
 ## 🤖 AI Clue Server
 
-Optional Node/Express service that generates 5 clues via OpenAI.
+Node/Express service that generates 5 clues via OpenAI.
 See: [ai-clue-server/README.md](ai-clue-server/README.md).
 
 ## 🌐 Supported Platforms
 
 - **iOS** - Native iOS app
-- **Android** - Native Android app
 - **Web** - Progressive Web App
 - **macOS** - Desktop application
 

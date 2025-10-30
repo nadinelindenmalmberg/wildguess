@@ -29,20 +29,16 @@ class ApiService {
   Future<AnimalData> getRandomAnimal({bool isEnglish = false}) async {
     // Check if we're in test mode
     final isTestMode = await _isTestMode();
-    print('[ApiService] Test mode check: $isTestMode');
     
     if (isTestMode) {
       // Test mode: return random animal
-      print('[ApiService] Using test mode - returning random animal');
       try {
         return await getRandomAnimalFromAPI();
       } catch (e) {
-        print('[ApiService] API failed, using test animals: $e');
         return _getTestAnimal(isEnglish: isEnglish);
       }
     } else {
       // Production mode: return today's animal (same for all players)
-      print('[ApiService] Using production mode - returning today\'s animal');
       return await _getTodaysAnimal(isEnglish: isEnglish);
     }
   }

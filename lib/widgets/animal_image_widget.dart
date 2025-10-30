@@ -34,7 +34,7 @@ class AnimalImageWidget extends StatelessWidget {
         fit: fit,
         loadingBuilder: (context, child, loadingProgress) {
           if (loadingProgress == null) return child;
-          
+
           return Container(
             width: width,
             height: height,
@@ -64,8 +64,9 @@ class AnimalImageWidget extends StatelessWidget {
           );
         },
         errorBuilder: (context, error, stackTrace) {
-          print('[AnimalImageWidget] Error loading image: $error');
-          return showPlaceholder ? _buildPlaceholder() : const SizedBox.shrink();
+          return showPlaceholder
+              ? _buildPlaceholder()
+              : const SizedBox.shrink();
         },
       ),
     );
@@ -88,7 +89,9 @@ class AnimalImageWidget extends StatelessWidget {
         children: [
           Icon(
             Icons.pets,
-            size: (height != null ? height! * 0.3 : 40).clamp(20.0, 60.0).toDouble(),
+            size: (height != null ? height! * 0.3 : 40)
+                .clamp(20.0, 60.0)
+                .toDouble(),
             color: Colors.grey[400],
           ),
           const SizedBox(height: 8),
@@ -135,7 +138,7 @@ class QuizAnimalImageWidget extends StatelessWidget {
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.1),
+              color: Colors.black.withValues(alpha: 0.1),
               blurRadius: 8,
               offset: const Offset(0, 4),
             ),
@@ -153,7 +156,7 @@ class QuizAnimalImageWidget extends StatelessWidget {
                 height: 200,
                 fit: BoxFit.cover,
               ),
-              
+
               // Overlay for unrevealed state
               if (!isRevealed)
                 Container(

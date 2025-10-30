@@ -6,13 +6,13 @@ class DailyPlayService {
   static const String _dailyPlayKey = 'daily_play_date';
   static const String _dailyAnimalKey = 'daily_animal';
   static final SupabaseClient _supa = Supabase.instance.client;
-  
+
   static Future<void> _ensureAuth() async {
     if (_supa.auth.currentSession == null) {
       await _supa.auth.signInAnonymously();
     }
   }
-  
+
   /// Check if user has already played today
   static Future<bool> hasPlayedToday() async {
     // Primary: check Supabase by user_id and today's day_key
@@ -29,8 +29,9 @@ class DailyPlayService {
             .eq('user_id', userId)
             .like('day_key', '$dayKey%')
             .limit(1);
-        if (resp is List && resp.isNotEmpty) {
-          return true;
+        if (resp is List) {
+          // If we could query Supabase, trust it: true if a row exists; false otherwise.
+          return resp.isNotEmpty;
         }
       }
     } catch (e) {
@@ -52,7 +53,7 @@ class DailyPlayService {
       return false;
     }
   }
-  
+
   /// Mark that user has played today
   static Future<void> markPlayedToday() async {
     // We keep local mark as UI optimization; authoritative check is Supabase
@@ -64,26 +65,25 @@ class DailyPlayService {
       print('Error marking daily play: $e');
     }
   }
-  
+
   /// Get today's animal (cached)
   static Future<AnimalData?> getTodaysAnimal() async {
     try {
       final prefs = await SharedPreferences.getInstance();
       final animalJson = prefs.getString(_dailyAnimalKey);
-      
+
       if (animalJson == null) return null;
-      
-      final animalMap = Map<String, dynamic>.from(
-        Uri.splitQueryString(animalJson)
-      );
-      
+
+      final animalMap =
+          Map<String, dynamic>.from(Uri.splitQueryString(animalJson));
+
       return AnimalData.fromJson(animalMap);
     } catch (e) {
       print('Error getting today\'s animal: $e');
       return null;
     }
   }
-  
+
   /// Cache today's animal
   static Future<void> setTodaysAnimal(AnimalData animal) async {
     try {
@@ -94,7 +94,7 @@ class DailyPlayService {
       print('Error caching today\'s animal: $e');
     }
   }
-  
+
   /// Clear daily play status (for testing)
   static Future<void> clearDailyPlay() async {
     try {

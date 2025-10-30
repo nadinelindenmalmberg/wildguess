@@ -68,6 +68,17 @@ Future<void> submitScore({
     solved: solved,
   );
 
+  // Ensure FK target exists (players row) before writing to daily_scores
+  try {
+    final userId = supa.auth.currentUser?.id;
+    if (userId != null) {
+      await supa.from('players').upsert({'user_id': userId}).select('user_id');
+    }
+  } catch (e) {
+    // Non-fatal; RPC may also create it if present
+    // print('players upsert warning: $e');
+  }
+
   await supa.rpc('submit_score', params: {
     'p_day_key': key,
     'p_score': score,

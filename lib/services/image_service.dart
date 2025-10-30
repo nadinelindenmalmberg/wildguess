@@ -219,10 +219,8 @@ class ImageService {
             
             for (final result in scoredResults.take(3)) {
               final title = result['title'] as String;
-              final score = result['score'] as int;
               final imageUrl = await _getImageUrl(title);
               if (imageUrl.isNotEmpty) {
-                print('[ImageService] Selected image with score $score: $title');
                 return imageUrl;
               }
             }
@@ -232,7 +230,6 @@ class ImageService {
       
       return '';
     } catch (e) {
-      print('[ImageService] Wikimedia search error: $e');
       return '';
     }
   }
@@ -271,7 +268,6 @@ class ImageService {
       
       return '';
     } catch (e) {
-      print('[ImageService] Error getting image URL: $e');
       return '';
     }
   }
@@ -349,7 +345,6 @@ class ImageService {
       for (final search in genusSearches) {
         final url = await _searchWikimediaCommons(search);
         if (url.isNotEmpty) {
-          print('[ImageService] Found genus-based image: $url');
           return url;
         }
       }
@@ -373,7 +368,6 @@ class ImageService {
         for (final search in commonSearches) {
           final url = await _searchWikimediaCommons(search);
           if (url.isNotEmpty) {
-            print('[ImageService] Found common name image: $url');
             return url;
           }
         }
@@ -393,7 +387,6 @@ class ImageService {
         for (final search in swedishSearches) {
           final url = await _searchWikimediaCommons(search);
           if (url.isNotEmpty) {
-            print('[ImageService] Found Swedish name image: $url');
             return url;
           }
         }
@@ -401,7 +394,6 @@ class ImageService {
       
       return '';
     } catch (e) {
-      print('[ImageService] Alternative search error: $e');
       return '';
     }
   }
@@ -434,7 +426,6 @@ class ImageService {
   /// Clear image cache (cache is disabled, but this clears any existing cache)
   static void clearCache() {
     _imageCache.clear();
-    print('[ImageService] Image cache cleared (cache is disabled - fresh images will be fetched)');
   }
   
   /// Dispose resources
