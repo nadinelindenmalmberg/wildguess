@@ -32,37 +32,25 @@ flutter run --dart-define=TAXON_SUBSCRIPTION_KEY=your_taxon_key --dart-define=SP
 
 - **Real Animal Data** - Uses ArtDatabanken API for Swedish mammals
 - **Progressive Hints** - Get clues one by one
-- **Multi-language** - Swedish/English support
-- **Cross-Platform** - Works on iOS, Android, Web, and macOS
+- **Multi-language** - Swedish/English support (names translated when English is active)
+- **High‑quality Images** - Fetched fresh from Wikimedia Commons (no caching) with English‑first search and quality scoring
 - **Daily Animals** - Different animal each day
-
-## 🏗️ Project Structure
-
-```
-wildguess/
-├── lib/
-│   ├── main.dart              # Main app code
-│   ├── api_service.dart       # ArtDatabanken API integration
-│   └── translation_extension.dart
-├── pubspec.yaml              # Dependencies
-├── taxon_key.txt             # ArtDatabanken taxon service key (gitignored)
-├── species_key.txt           # ArtDatabanken species data key (gitignored)
-└── README.md                 # This file
-```
+- **Global Stats** - Daily hint distribution and success rates from Supabase `daily_scores`
+- **History** - History tab renders only animals from database (`daily_scores`), not local cache
+- **Cross‑Platform** - iOS, Android, Web, and macOS
 
 ## 🔐 API Keys
 
-The app uses two ArtDatabanken API keys stored in `api_keys.json`:
-- `TAXON_SUBSCRIPTION_KEY` - For getting mammal species list
-- `SPECIES_SUBSCRIPTION_KEY` - For getting detailed animal data
+The app reads keys from dart‑defines (recommended) or a local `.env` via helper script. Required keys:
+- `TAXON_SUBSCRIPTION_KEY` – Mammal species list
+- `SPECIES_SUBSCRIPTION_KEY` – Detailed species data
 
-The `api_keys.json` file is gitignored for security. Create it with your keys:
+Use the helper scripts:
 
-```json
-{
-  "TAXON_SUBSCRIPTION_KEY": "your_taxon_key_here",
-  "SPECIES_SUBSCRIPTION_KEY": "your_species_key_here"
-}
+```bash
+./setup_keys.sh    # creates .env from env.example
+# edit .env with your keys
+./run_ios.sh       # runs with dart-defines on iOS simulator
 ```
 
 ## 🔧 Development
@@ -71,9 +59,10 @@ The `api_keys.json` file is gitignored for security. Create it with your keys:
 The app automatically fetches real mammal data from ArtDatabanken, so no manual animal additions needed!
 
 ### API Integration
-- **Taxon Service** - Gets list of 104 Swedish mammal species
-- **Species Data Service** - Gets detailed information and red list data
-- **Random Selection** - Picks a different mammal each time
+- **Taxon Service** - Gets list of Swedish mammal species
+- **Species Data Service** - Detailed information and red list data
+- **Image Service** - Wikimedia Commons with English‑first terms, scoring, and caching disabled
+- **Statistics Service** - Reads global daily stats from Supabase `daily_scores` (and aggregates from `aggregate_stats`)
 
 ### Translation
 Edit `lib/translation_extension.dart` to add more languages.
@@ -82,7 +71,13 @@ Edit `lib/translation_extension.dart` to add more languages.
 
 1. **Home Screen** - Welcome and start game
 2. **Game Screen** - Show hints and accept guesses  
-3. **Result Screen** - Win/lose feedback
+3. **Result Screen** - Win/lose feedback with global stats (no score box, no description)
+4. **History Screen** - Shows games from Supabase `daily_scores` only
+
+## 🤖 AI Clue Server
+
+Optional Node/Express service that generates 5 clues via OpenAI.
+See: [ai-clue-server/README.md](ai-clue-server/README.md).
 
 ## 🌐 Supported Platforms
 

@@ -53,30 +53,3 @@ curl -X POST http://localhost:3000/chat \
     ]
   }'
 ```
-
-## Flutter Integration
-
-Use the `/clues` endpoint from your Flutter app:
-
-```dart
-Future<List<String>> generateAiClues(String animalName, String scientificName, String description, bool isEnglish) async {
-  final response = await http.post(
-    Uri.parse('http://localhost:3000/clues'),
-    headers: {'Content-Type': 'application/json'},
-    body: json.encode({
-      'animalName': animalName,
-      'scientificName': scientificName,
-      'description': description,
-      'isEnglish': isEnglish,
-    }),
-  );
-  
-  if (response.statusCode == 200) {
-    final data = json.decode(response.body);
-    return _parseClues(data['text']);
-  } else {
-    throw Exception('Failed to generate clues');
-  }
-}
-```
-

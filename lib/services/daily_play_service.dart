@@ -1,33 +1,61 @@
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/animal_data.dart';
 
 class DailyPlayService {
   static const String _dailyPlayKey = 'daily_play_date';
   static const String _dailyAnimalKey = 'daily_animal';
+  static final SupabaseClient _supa = Supabase.instance.client;
+  
+  static Future<void> _ensureAuth() async {
+    if (_supa.auth.currentSession == null) {
+      await _supa.auth.signInAnonymously();
+    }
+  }
   
   /// Check if user has already played today
   static Future<bool> hasPlayedToday() async {
+    // Primary: check Supabase by user_id and today's day_key
+    try {
+      await _ensureAuth();
+      final userId = _supa.auth.currentUser?.id;
+      if (userId != null) {
+        final today = DateTime.now();
+        final dayKey =
+            '${today.year.toString().padLeft(4, '0')}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}';
+        final resp = await _supa
+            .from('daily_scores')
+            .select('id')
+            .eq('user_id', userId)
+            .like('day_key', '$dayKey%')
+            .limit(1);
+        if (resp is List && resp.isNotEmpty) {
+          return true;
+        }
+      }
+    } catch (e) {
+      print('Error checking daily play status from Supabase: $e');
+    }
+
+    // Fallback: local SharedPreferences
     try {
       final prefs = await SharedPreferences.getInstance();
       final lastPlayDate = prefs.getString(_dailyPlayKey);
-      
       if (lastPlayDate == null) return false;
-      
       final today = DateTime.now();
       final lastPlay = DateTime.parse(lastPlayDate);
-      
-      // Check if it's the same day
-      return today.year == lastPlay.year && 
-             today.month == lastPlay.month && 
-             today.day == lastPlay.day;
+      return today.year == lastPlay.year &&
+          today.month == lastPlay.month &&
+          today.day == lastPlay.day;
     } catch (e) {
-      print('Error checking daily play status: $e');
+      print('Error checking daily play status (local fallback): $e');
       return false;
     }
   }
   
   /// Mark that user has played today
   static Future<void> markPlayedToday() async {
+    // We keep local mark as UI optimization; authoritative check is Supabase
     try {
       final prefs = await SharedPreferences.getInstance();
       final today = DateTime.now().toIso8601String();
