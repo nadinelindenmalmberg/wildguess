@@ -362,7 +362,10 @@ class _QuizScreenState extends State<QuizScreen> {
     return Scaffold(
       // Scaffold är tillgänglig
       backgroundColor: Colors.black,
-      body: Stack(
+      body: GestureDetector(
+        behavior: HitTestBehavior.translucent,
+        onTap: () => FocusScope.of(context).unfocus(),
+        child: Stack(
         // Stack är tillgänglig
         children: [
           Container(
@@ -1102,8 +1105,8 @@ class _QuizScreenState extends State<QuizScreen> {
                                       children: [
                                         Text(
                                           widget.isEnglish
-                                              ? 'Back to Level $_maxReachedLevel'
-                                              : 'Tillbaka till Nivå $_maxReachedLevel',
+                                              ? 'Back to Clue $_maxReachedLevel'
+                                              : 'Tillbaka till Hint $_maxReachedLevel',
                                           style: GoogleFonts.ibmPlexMono(
                                               color: _newColor,
                                               fontSize: 16,
@@ -1148,6 +1151,7 @@ class _QuizScreenState extends State<QuizScreen> {
             ),
           ),
         ],
+      ),
       ),
     );
   }
